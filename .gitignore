@@ -3,13 +3,19 @@
 venv/
 __pycache__/
 *.pyc
-# Ignore temporary files
-~$*
-*.tmp
-*.exe
-ngrok.exe
-
-# Ignore local database files that change frequently
+# Database and Logs
+*.db
 *.db-shm
 *.db-wal
-chroma_db/
+*.log
+
+# Executables and OS files
+*.exe
+.DS_Store
+Thumbs.db
+
+# Microsoft Office temporary files
+~$*
+
+# Environment files
+.env

@@ -1,0 +1,11 @@
+Order ID,Order Date,Customer Name,Phone,Email,Address,Product Name,Price,Delivery Date,Status
+ORD-22BC46,2026-05-13 17:35:41,Bappy,phone number,email,address,Premium Cotton T-Shirt,19.99,2026-05-16,Pending
+ORD-7C0366,2026-05-13 17:44:07,Bappy,01700000000,bappy@email.com,"141 & 142, Love Road, Tejgaon Industrial Area, Dhaka-1208",Premium Cotton T-Shirt,19.99,2026-05-16,Pending
+ORD-A269C2,2026-05-13 18:04:34,Bappy,01700000000,bappynath2001@gmail.com,"141 & 142, Love Road, Dhaka",Premium Cotton T-Shirt,19.99,2026-05-16,Pending
+ORD-7C4E24,2026-05-13 21:31:16,Bappy,01700000000,bappynath2001@gmail.com,"141 & 142, Love Road, Dhaka",Premium Cotton T-Shirt,19.99,2026-05-16,Pending
+ORD-FD07CA,2026-05-14 00:45:35,Bappy,01700000000,bappynath2001@gmail.com,"141 & 142, Love Road, Tejgaon Industrial Area, Dhaka-1208",Premium Cotton T-Shirt,19.99,2026-05-17,Pending
+ORD-0D3AAE,2026-05-14 00:59:54,Bappy,01700000000,bappynath2001@gmail.com,"141 & 142, Love Road, Dhaka",Premium Cotton T-Shirt,19.99,2026-05-17,Pending
+ORD-DBC9FE,2026-05-14 18:23:41,Prottoy,01973336948,bappy.cse.20210204074@aust.edu,Dhaka,Yoga Mat,29.99,2026-05-17,Pending
+ORD-46B6B0,2026-05-15 18:26:16,Bappy,01973336948,bappynath2001@gmail.com,Dhaka,15 cotton shirts,19.99,2026-05-18,Pending
+ORD-B17C97,2026-05-16 03:29:32,A,01789765432,bappynath2001@gmail.com,Dhaka,Yoga Mat,29.99,2026-05-19,Pending
+ORD-B8DA60,2026-05-23 02:40:31,BappyNath,Not provided,Not provided,Dhaka,Adapter,19.99,2026-05-26,Pending

@@ -1,0 +1,15 @@
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+# Ignore temporary files
+~$*
+*.tmp
+*.exe
+ngrok.exe
+
+# Ignore local database files that change frequently
+*.db-shm
+*.db-wal
+chroma_db/

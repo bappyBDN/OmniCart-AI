@@ -1,21 +1,26 @@
+# Environments
 .env
 .venv/
 venv/
+
+# Python caching
 __pycache__/
 *.pyc
+
 # Database and Logs
 *.db
 *.db-shm
 *.db-wal
 *.log
+chroma_db/
 
-# Executables and OS files
+# OS and Temp Files
 *.exe
 .DS_Store
 Thumbs.db
-
-# Microsoft Office temporary files
 ~$*
+*.tmp
 
-# Environment files
-.env
+# Documentation and Office
+~$*.docx
+~$*.rtf

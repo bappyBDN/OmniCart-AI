@@ -46,5 +46,5 @@ Small and medium online businesses (SMEs) face a massive bottleneck: they cannot
 
 ### 1. Clone the repository
 ```bash
-git clone [https://github.com/your-username/OmniCart-AI.git](https://github.com/your-username/OmniCart-AI.git)
+git clone [https://github.com/your-username/OmniCart-AI.git](https://github.com/bappyBDN/OmniCart-AI.git)
 cd OmniCart-AI

@@ -24,3 +24,12 @@ Thumbs.db
 # Documentation and Office
 ~$*.docx
 ~$*.rtf
+
+# React build and local test artifacts
+frontend/node_modules/
+frontend/dist/
+frontend/playwright-report/
+frontend/test-results/
+.pytest_cache/
+.coverage
+htmlcov/

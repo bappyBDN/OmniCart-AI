@@ -89,6 +89,38 @@ def policy_search_tool(query: str) -> str:
 # ৩. ইউজার প্রোফাইল টুলস (Config সহ)
 # ==========================================
  
+import difflib
+
+def _normalize(text: str) -> str:
+    """Lowercase and strip non-alphanumeric chars for fuzzy comparison."""
+    return re.sub(r'[^a-z0-9]', '', text.lower()) if text else ""
+
+def _digits_only(text: str) -> str:
+    return ''.join(filter(str.isdigit, text)) if text else ""
+
+def _value_grounded_in_raw_text(value: str, raw_text: str, is_phone: bool = False) -> bool:
+    """
+    Checks whether `value` actually appears in the user's raw message(s).
+    This is the REAL anti-hallucination check — instead of blocking a
+    fixed list of fake values, it verifies the LLM didn't invent ANYTHING.
+    """
+    if not raw_text:
+        # No raw text available to verify against — fail safe (reject)
+        return False
+
+    if is_phone:
+        v = _digits_only(value)
+        return bool(v) and v in _digits_only(raw_text)
+
+    v = _normalize(value)
+    r = _normalize(raw_text)
+    if not v:
+        return False
+    if v in r:
+        return True
+    # Allow minor fuzzy match for names (e.g. spacing/typo tolerance)
+    return difflib.SequenceMatcher(None, v, r).find_longest_match(0, len(v), 0, len(r)).size >= max(3, int(len(v) * 0.8))
+
 @tool
 def update_user_info_tool(name: str = None, phone: str = None, email: str = None, address: str = None, config: RunnableConfig = None) -> str:
     """
@@ -97,9 +129,12 @@ def update_user_info_tool(name: str = None, phone: str = None, email: str = None
     """
     safe_config = config or {}
     unique_id = safe_config.get("configurable", {}).get("thread_id", "default_user")
+    # 🛡️ Ground-truth text of what the user actually typed recently.
+    # Injected by chat_interface.py so we can verify the LLM isn't inventing data.
+    raw_user_text = safe_config.get("configurable", {}).get("raw_user_text", "")
     shop_id = "shop_01"
     
-    # 🛡️ THE FIX: প্রম্পটের বদলে পাইথন লজিক দিয়ে ফেক ডাটা ব্লক করা হলো
+    # 🛡️ FIX: প্রম্পটের বদলে পাইথন লজিক দিয়ে ফেক ডাটা ব্লক করা হলো
     dummy_names = ["john", "john doe", "test", "demo", "user", "customer", "fake"]
     dummy_phones = ["1234567890", "0123456789", "0000000000", "12345", "01700000000"]
     
@@ -108,6 +143,25 @@ def update_user_info_tool(name: str = None, phone: str = None, email: str = None
     
     if phone and ''.join(filter(str.isdigit, phone)) in dummy_phones:
         return "❌ ERROR: DO NOT guess phone numbers. Ask the user for their real phone number."
+
+    # 🛡️ REAL FIX: verify every field actually appears in what the user typed.
+    # This catches ANY invented value, not just the fixed blocklist above.
+    if name and not _value_grounded_in_raw_text(name, raw_user_text):
+        return (f"❌ ERROR: The name '{name}' was NOT found in the user's actual messages. "
+                f"You must NEVER invent a name. Ask the user directly: 'আপনার নামটি লিখুন' "
+                f"and only call this tool again once they have typed it themselves.")
+    
+    if phone and not _value_grounded_in_raw_text(phone, raw_user_text, is_phone=True):
+        return (f"❌ ERROR: The phone number '{phone}' was NOT found in the user's actual messages. "
+                f"You must NEVER invent a phone number. Ask the user directly for their real phone number.")
+    
+    if email and not _value_grounded_in_raw_text(email, raw_user_text):
+        return (f"❌ ERROR: The email '{email}' was NOT found in the user's actual messages. "
+                f"You must NEVER invent an email. Ask the user directly for their real email.")
+    
+    if address and not _value_grounded_in_raw_text(address, raw_user_text):
+        return (f"❌ ERROR: The address '{address}' was NOT found in the user's actual messages. "
+                f"You must NEVER invent an address. Ask the user directly for their real address.")
 
     db = get_db()
     try:

@@ -11,7 +11,7 @@ from langchain_core.tools import tool
 
 # আপনার তৈরি করা অন্যান্য মডিউল
   # <--- create_order_tool যোগ করা হলো
-from tools import search_product, create_order_tool, send_email_tool
+from tools import search_product, process_order_tool, update_user_info_tool, check_user_status_tool
 from memory_manager import get_memory_saver, cleanup_memory  # <--- নতুন মডিউল ইমপোর্ট করা হলো
 
 load_dotenv()
@@ -29,7 +29,7 @@ policy_db = Chroma(
 # ==========================================
 # ২: টুলস সেটআপ
 # ==========================================
-from tools import search_product, create_order_tool, send_email_tool  # <--- create_order_tool যোগ করা হলো
+from tools import search_product, process_order_tool, update_user_info_tool, check_user_status_tool  # <--- create_order_tool যোগ করা হলো
 @tool
 def policy_search_tool(query: str) -> str:
     """CRITICAL: You MUST use this tool EVERY TIME the user asks about shop rules, return policy, refund, delivery, shipping, or payment."""
@@ -44,7 +44,7 @@ def product_search_tool(query: str) -> str:
     return search_product(query)
 
 
-tools = [policy_search_tool, product_search_tool, create_order_tool,send_email_tool]  # <--- create_order_tool টুলস লিস্টে যোগ করা হলো
+tools = [policy_search_tool, product_search_tool, process_order_tool, update_user_info_tool, check_user_status_tool]  # <--- create_order_tool টুলস লিস্টে যোগ করা হলো
 
 # ==========================================
 # ৩: ব্রেইন এবং লং-টার্ম মেমরি সেটআপ
@@ -74,8 +74,8 @@ Follow these CRITICAL RULES with 100% strictness:
 3. TOOL CALLING: ALWAYS use 'product_search_tool' for products and 'policy_search_tool' for shop rules.
 4. ORDER PROCESS (CRITICAL): 
    - If a user says "I want to buy/order X", ask for their: Name, Phone Number, Email, and Delivery Address.
-   - Once the user provides all 4 details, call 'create_order_tool' to save the order.
-   - IMMEDIATELY after 'create_order_tool' succeeds, you MUST call 'send_email_tool' using the returned Order ID, Delivery Date, and the user's email.
+   - You MUST use 'update_user_info_tool' to save these details and 'check_user_status_tool' to verify before ordering.
+   - Once all details are saved and verified, call 'process_order_tool' to save the order and auto-send the email.
    - Finally, congratulate the user, give them the Order ID, and tell them a confirmation email has been sent.
 5. Format the output beautifully in paragraphs or bullet points.
 6. Reply in the user's language (Bangla or English)."""

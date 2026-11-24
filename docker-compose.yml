@@ -1,0 +1,46 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        INSTALL_DENSE: ${DOCKER_INSTALL_DENSE:-false}
+    restart: unless-stopped
+    init: true
+    env_file:
+      - .env
+    environment:
+      # Do not reuse a Windows/local DATABASE_URL inside the Linux container.
+      # Set DOCKER_DATABASE_URL to use an existing reachable PostgreSQL database.
+      DATABASE_URL: ${DOCKER_DATABASE_URL:-sqlite:////app/data/ecommerce_saas.db}
+      HF_HOME: /app/cache/huggingface
+      RAG_DENSE_ENABLED: ${DOCKER_INSTALL_DENSE:-false}
+    ports:
+      - "${DOCKER_BIND_HOST:-127.0.0.1}:${DOCKER_PORT:-8000}:8000"
+    volumes:
+      - app-data:/app/data
+      - model-cache:/app/cache
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=5).close()"
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  app-data:
+  model-cache:

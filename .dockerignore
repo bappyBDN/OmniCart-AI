@@ -1,0 +1,28 @@
+# Allow only application/build inputs. Never send credentials, databases, virtual
+# environments, backups or unrelated workspace files to the Docker builder.
+**
+!Dockerfile
+!.dockerignore
+!backend/
+!backend/**
+!models.py
+!Data/
+!Data/products.json
+!Data/policies.json
+!frontend/
+!frontend/package.json
+!frontend/package-lock.json
+!frontend/index.html
+!frontend/admin.html
+!frontend/vite.config.js
+!frontend/src/
+!frontend/src/**
+!frontend/public/
+!frontend/public/**
+**/__pycache__/
+**/*.pyc
+**/.env
+**/.env.*
+**/*.db
+**/*.db-*
+**/*.sqlite*

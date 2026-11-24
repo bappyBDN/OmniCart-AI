@@ -1,8 +1,10 @@
 # Docker deployment
 
 This deploys the current React + FastAPI app, not the legacy Streamlit app.
-Docker builds React and serves it through FastAPI on port 8000. Install Docker
-Engine/Desktop with the Compose v2 plugin; on Windows use Linux containers.
+Docker builds React and serves it through FastAPI on port 8000, with a separate
+PostgreSQL 17 service. Install Docker Engine/Desktop with the Compose v2 plugin;
+on Windows use Linux containers. For Render, follow [the Render guide](render.md):
+Render uses the Dockerfile/Blueprint, not this Compose file.
 
 ## First deployment
 
@@ -16,9 +18,13 @@ Copy-Item .env.example .env
 Edit `.env` and set `GROQ_API_KEY` and, for the complex-task model,
 `DEEPSEEK_CHAT_API_KEY`. Keep `.env` private; it is supplied at runtime and never
 copied into the image. Keep `EMAIL_ENABLED=false` unless real email is intended.
+Also set a strong `POSTGRES_PASSWORD`. Compose constructs the connection URL
+safely, so this password does not need URL encoding. Keep the other PostgreSQL
+settings unchanged unless you intend to create a differently named database/user.
 
 ```powershell
 docker compose build
+docker compose up -d --wait db
 # First-time setup only: imports the supplied catalog into an empty database.
 docker compose run --rm app python -m backend.bootstrap --seed
 # Prompts for a new password; existing admins are not overwritten.
@@ -40,19 +46,21 @@ to rebuild its retrieval cache.
 
 ## Storage and existing data
 
-The default database is `/app/data/ecommerce_saas.db` in the persistent Compose
-`app-data` volume. Model downloads use the separate `model-cache` volume.
+The default database is PostgreSQL (`omnichat`) in the persistent Compose
+`postgres-data` volume. Port 5432 is not published to the host/public internet.
+The app waits for PostgreSQL's health check before starting. Model downloads use
+the separate `model-cache` volume. The previous `app-data` SQLite volume is
+retained for backup/recovery only; it is no longer the active database.
 Rebuilds and `docker compose down` retain these volumes. **Do not run
 `docker compose down -v` unless you intend to delete the stored data.** Back up
 the database before upgrades.
 
 The database files in your working folder are **not** bundled into the image or
-automatically imported. This default starts a separate, empty database. To move
-an existing SQLite shop, stop all writers, create a consistent snapshot with
-SQLite's backup API (including committed WAL data), and restore that snapshot
-as `/app/data/ecommerce_saas.db` in the volume while the app is stopped. Ensure
-the database and directory are writable by UID/GID `10001:10001`. Do not copy a
-live `.db` file alone or seed over an existing shop.
+automatically imported. This default starts a separate, empty PostgreSQL database.
+**Upgrading from the previous SQLite Compose setup does not migrate your data.**
+Stop the old app, back up its SQLite database including committed WAL data, and
+follow the PostgreSQL migration section in `README.md` before switching. Do not
+seed a target that should receive your existing catalog/customers/orders.
 
 For an existing PostgreSQL deployment, add this to `.env` **only after any
 required migration has succeeded**:
@@ -63,10 +71,16 @@ DOCKER_DATABASE_URL=postgresql+psycopg://USER:URL_ENCODED_PASSWORD@REACHABLE_HOS
 
 Preserve any required TLS options, such as `?sslmode=require`. `localhost` inside
 the container means the container itself, not the host; Docker Desktop can reach
-host services via `host.docker.internal`. This Compose file does not provision or
-migrate PostgreSQL. Follow the PostgreSQL migration section in `README.md` first.
+host services via `host.docker.internal`. The bundled `db` service is still
+started when you use an external URL; it is not the active database in that case.
+Compose provisions its bundled database but never migrates existing records.
+Follow the PostgreSQL migration section in `README.md` first.
 The host's ordinary `DATABASE_URL` is intentionally ignored by Compose so a
 Windows SQLite path or host-only PostgreSQL address cannot accidentally be reused.
+Never set `DOCKER_DATABASE_URL` to SQLite: PostgreSQL is required in the image.
+Changing `POSTGRES_PASSWORD` after a database volume is initialized does not rotate
+the database user's actual password; rotate it in PostgreSQL as well. Do not
+delete the volume to solve a password mismatch if it contains data.
 
 ## Optional dense retrieval
 

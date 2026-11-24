@@ -11,7 +11,9 @@ FROM python:3.12-slim-bookworm AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    HF_HOME=/app/cache/huggingface
+    HF_HOME=/app/cache/huggingface \
+    DATABASE_REQUIRE_POSTGRES=true \
+    RAG_DENSE_ENABLED=false
 WORKDIR /app
 
 COPY backend/requirements.txt backend/requirements-dense.txt ./backend/
@@ -37,4 +39,4 @@ COPY --from=frontend-build /build/frontend/dist/ ./frontend/dist/
 USER app
 EXPOSE 8000
 # Keep one worker: chat locks and rate limiting are currently process-local.
-CMD ["python", "-m", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+CMD ["python", "-m", "backend.serve"]

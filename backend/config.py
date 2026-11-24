@@ -3,14 +3,58 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from dotenv import load_dotenv
+from sqlalchemy.engine import URL, make_url
+from sqlalchemy.exc import ArgumentError
 
 ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(ROOT / ".env")
 
 
+def database_url_from_env(environ=None):
+    """Require PostgreSQL in containers/Render; retain SQLite for local development."""
+    env = os.environ if environ is None else environ
+    required = (env.get("RENDER", "").lower() == "true" or
+                env.get("DATABASE_REQUIRE_POSTGRES", "").lower() == "true")
+    value = (env.get("DATABASE_URL") or "").strip()
+    if not value and env.get("POSTGRES_HOST"):
+        if not env.get("POSTGRES_PASSWORD"):
+            raise RuntimeError("POSTGRES_PASSWORD is required when POSTGRES_HOST is set.")
+        try:
+            value = URL.create(
+                "postgresql+psycopg",
+                username=env.get("POSTGRES_USER", "omnicart"),
+                password=env["POSTGRES_PASSWORD"],
+                host=env["POSTGRES_HOST"],
+                port=int(env.get("POSTGRES_PORT", "5432")),
+                database=env.get("POSTGRES_DATABASE", "omnichat"),
+            ).render_as_string(hide_password=False)
+        except ValueError:
+            raise RuntimeError("POSTGRES_PORT must be a valid port number.") from None
+    if not value:
+        if required:
+            raise RuntimeError(
+                "DATABASE_URL is required for PostgreSQL deployment. On Render, set it "
+                "to your Postgres Internal Database URL in the web service Environment. "
+                "Docker Compose settings are not applied by Render."
+            )
+        value = f"sqlite:///{(ROOT / 'ecommerce_saas.db').as_posix()}"
+    try:
+        url = make_url(value)
+        # Accessing .port also validates malformed port values without connecting.
+        url.port
+    except (ArgumentError, ValueError):
+        raise RuntimeError("DATABASE_URL is invalid; supply a PostgreSQL connection URL.") from None
+    if required and url.drivername not in ("postgres", "postgresql", "postgresql+psycopg"):
+        raise RuntimeError(
+            "PostgreSQL is required for this deployment. Replace the SQLite/non-Postgres "
+            "DATABASE_URL with your Postgres connection URL."
+        )
+    return value
+
+
 @dataclass(frozen=True)
 class Settings:
-    database_url: str = os.getenv("DATABASE_URL", f"sqlite:///{(ROOT / 'ecommerce_saas.db').as_posix()}")
+    database_url: str = database_url_from_env()
     shop_id: str = os.getenv("SHOP_ID", "shop_01")
     model: str = os.getenv("CHAT_MODEL", "openai/gpt-oss-120b")
     small_model: str = os.getenv("LLM_SMALL_MODEL", "openai/gpt-oss-20b")

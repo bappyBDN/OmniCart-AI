@@ -14,8 +14,9 @@ versioned knowledge studio and support/knowledge audit trail.
 
 ## Run locally (Windows / PowerShell)
 
-For a containerized deployment (React build + API, persistent database, health
-check), see [Docker deployment](docs/docker.md) and `docker-compose.yml`.
+For a containerized deployment (React build + API + PostgreSQL), see
+[Docker deployment](docs/docker.md) and `docker-compose.yml`. For Render, use
+[`render.yaml`](render.yaml) and the [Render deployment guide](docs/render.md).
 
 Python 3.11+ and Node 20.19+ (or Node 22.12+) are recommended. The current Vite 6
 build also runs on this project's installed Node 20.11.

@@ -1,4 +1,20 @@
 services:
+  db:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DATABASE:-omnichat}
+      POSTGRES_USER: ${POSTGRES_USER:-omnicart}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
   app:
     build:
       context: .
@@ -9,10 +25,20 @@ services:
     init: true
     env_file:
       - .env
+    depends_on:
+      db:
+        condition: service_healthy
     environment:
-      # Do not reuse a Windows/local DATABASE_URL inside the Linux container.
-      # Set DOCKER_DATABASE_URL to use an existing reachable PostgreSQL database.
-      DATABASE_URL: ${DOCKER_DATABASE_URL:-sqlite:////app/data/ecommerce_saas.db}
+      # An explicit container URL can point to an existing PostgreSQL instance.
+      # Otherwise build the URL safely from components (passwords may contain @/:).
+      DATABASE_URL: ${DOCKER_DATABASE_URL:-}
+      DATABASE_REQUIRE_POSTGRES: "true"
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: ${POSTGRES_USER:-omnicart}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DATABASE: ${POSTGRES_DATABASE:-omnichat}
+      PORT: "8000"
       HF_HOME: /app/cache/huggingface
       RAG_DENSE_ENABLED: ${DOCKER_INSTALL_DENSE:-false}
     ports:
@@ -42,5 +68,7 @@ services:
         max-file: "3"
 
 volumes:
+  postgres-data:
+  # Retain the previous SQLite volume for backups; it is no longer active.
   app-data:
   model-cache:

@@ -1,7 +1,8 @@
-"""Create an isolated PostgreSQL database and copy the app's SQLite tables safely.
+"""Copy the app's SQLite tables safely into PostgreSQL.
 
 Credentials are read from .env, never command-line arguments or printed output.
 The original administrative database is queried but its tables are never changed.
+Use --use-database-url for an existing application database (for example Neon).
 The app's DATABASE_URL is deliberately not changed by this utility.
 """
 import argparse
@@ -24,6 +25,15 @@ import backend.records  # noqa: F401: register session, conversation and outbox 
 
 class MigrationError(RuntimeError):
     pass
+
+
+def application_url(value):
+    url = normalize_url(value)
+    if url.drivername != "postgresql+psycopg" or not url.host or not url.database:
+        raise MigrationError("DATABASE_URL must be a full PostgreSQL connection URL.")
+    if url.database in ("postgres", "template0", "template1"):
+        raise MigrationError("DATABASE_URL must select an application database, not a system database.")
+    return url
 
 
 def connection_urls(admin_value, database):
@@ -122,27 +132,36 @@ def main():
     action.add_argument("--check", action="store_true", help="Only check DNS, authentication, and target availability")
     action.add_argument("--create", action="store_true", help="Create the separate target database, without copying records")
     action.add_argument("--migrate", action="store_true", help="Create target if needed and copy all SQLite app tables")
+    parser.add_argument("--use-database-url", action="store_true",
+                        help="Use the existing application DATABASE_URL directly; never create a database")
     parser.add_argument("--source-paused", action="store_true", help="Confirm you stopped ALL SQLite app writers before importing")
     parser.add_argument("--sqlite", type=Path, default=ROOT / "ecommerce_saas.db")
     args = parser.parse_args()
     if args.migrate and not args.source_paused:
         parser.error("Stop the API and legacy Streamlit app, then pass --source-paused. This prevents losing writes at cutover.")
-    value = os.getenv("POSTGRES_ADMIN_URL", "")
+    if args.use_database_url and args.create:
+        parser.error("--create cannot be used with --use-database-url; the database must already exist.")
+    variable = "DATABASE_URL" if args.use_database_url else "POSTGRES_ADMIN_URL"
+    value = os.getenv(variable, "")
     if not value:
-        parser.error("Set POSTGRES_ADMIN_URL in .env (do not put passwords on the command line).")
+        parser.error(f"Set {variable} in .env (do not put passwords on the command line).")
     admin_engine = target_engine = None
     try:
-        admin_url, target_url = connection_urls(value, os.getenv("POSTGRES_DATABASE", "omnichat"))
+        if args.use_database_url:
+            target_url = application_url(value)
+        else:
+            admin_url, target_url = connection_urls(value, os.getenv("POSTGRES_DATABASE", "omnichat"))
         try:
-            socket.getaddrinfo(admin_url.host, admin_url.port or 5432, type=socket.SOCK_STREAM)
+            socket.getaddrinfo(target_url.host, target_url.port or 5432, type=socket.SOCK_STREAM)
         except OSError:
-            raise MigrationError(f"Host '{admin_url.host}' cannot be resolved from this machine. Supply a reachable PostgreSQL host/port or use the server's container network/SSH tunnel.") from None
-        admin_engine = make_engine(admin_url)
-        exists = ensure_database(admin_engine, target_url.database, create=args.create or args.migrate)
-        print("Administrative PostgreSQL connection verified (credentials hidden).")
-        if not exists:
-            print(f"Target '{target_url.database}' does not exist yet. Use --create or --migrate after checking access.")
-            return
+            raise MigrationError(f"Host '{target_url.host}' cannot be resolved from this machine. Supply a reachable PostgreSQL host/port or use the server's container network/SSH tunnel.") from None
+        if not args.use_database_url:
+            admin_engine = make_engine(admin_url)
+            exists = ensure_database(admin_engine, target_url.database, create=args.create or args.migrate)
+            print("Administrative PostgreSQL connection verified (credentials hidden).")
+            if not exists:
+                print(f"Target '{target_url.database}' does not exist yet. Use --create or --migrate after checking access.")
+                return
         target_engine = make_engine(target_url)
         with target_engine.connect() as connection:
             actual_name = connection.execute(text("SELECT current_database()")).scalar_one()
@@ -153,7 +172,7 @@ def main():
             counts = migrate_snapshot(args.sqlite, target_engine)
             for table, count in counts.items():
                 print(f"  {table}: {count} records verified")
-            print("Import committed. Original SQLite retained. Set DATABASE_URL to the same server's /omnichat database and restart the API.")
+            print(f"Import committed. Original SQLite retained. Restart the API with DATABASE_URL selecting '{target_url.database}'.")
         else:
             print("No app records were copied. Active DATABASE_URL was not changed.")
     except (MigrationError, SQLAlchemyError, ValueError) as exc:

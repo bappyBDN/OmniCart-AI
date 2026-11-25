@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from unittest.mock import MagicMock
 
 import pytest
 from sqlalchemy import func, select
@@ -6,7 +7,8 @@ from sqlalchemy.schema import CreateTable
 from sqlalchemy.dialects import postgresql
 
 from backend.database import make_engine, normalize_url
-from backend.migrate_postgres import MigrationError, connection_urls, copy_tables, migrate_snapshot
+from backend import migrate_postgres
+from backend.migrate_postgres import MigrationError, application_url, connection_urls, copy_tables, migrate_snapshot
 from backend.records import AccessSession, ChatTurn
 from models import Base, Shop
 
@@ -27,6 +29,70 @@ def test_target_database_is_separate_and_credentials_are_preserved():
     assert target.host == admin.host
     assert target.password == admin.password
     assert 'password' not in str(target)
+
+
+def test_existing_neon_database_preserves_name_and_tls_options():
+    url = application_url('postgresql://example:escaped%40password@db.example/omnichat-db?sslmode=require&channel_binding=require')
+    assert url.drivername == 'postgresql+psycopg'
+    assert url.database == 'omnichat-db'
+    assert url.password == 'escaped@password'
+    assert url.query == {'sslmode': 'require', 'channel_binding': 'require'}
+
+
+@pytest.mark.parametrize('value', [
+    'sqlite:///shop.db', 'postgresql:///omnichat-db', 'postgresql://user:password@host',
+    'postgresql://user:password@host/postgres', 'postgresql://user:password@host/template0',
+    'postgresql://user:password@host/template1',
+])
+def test_existing_target_requires_a_postgres_application_database(value):
+    with pytest.raises(MigrationError):
+        application_url(value)
+
+
+@pytest.mark.parametrize('action', ['--check', '--migrate'])
+def test_existing_database_cli_never_uses_administrative_connection(monkeypatch, capsys, action):
+    value = 'postgresql://example:private-password@db.example/omnichat-db?sslmode=require&channel_binding=require'
+    monkeypatch.setenv('DATABASE_URL', value)
+    monkeypatch.setenv('POSTGRES_ADMIN_URL', 'must-not-be-used')
+    monkeypatch.setenv('POSTGRES_DATABASE', 'different_database')
+    monkeypatch.setattr('sys.argv', ['migrate_postgres', '--use-database-url', action, '--source-paused'])
+    monkeypatch.setattr(migrate_postgres.socket, 'getaddrinfo', MagicMock())
+    target = MagicMock()
+    target.connect.return_value.__enter__.return_value.execute.return_value.scalar_one.return_value = 'omnichat-db'
+    factory = MagicMock(return_value=target)
+    monkeypatch.setattr(migrate_postgres, 'make_engine', factory)
+    admin = MagicMock(side_effect=AssertionError('Administrative connection must not be used'))
+    monkeypatch.setattr(migrate_postgres, 'ensure_database', admin)
+    migrate = MagicMock(return_value={'shops': 1})
+    monkeypatch.setattr(migrate_postgres, 'migrate_snapshot', migrate)
+
+    migrate_postgres.main()
+
+    factory.assert_called_once()
+    assert factory.call_args.args[0] == normalize_url(value)
+    admin.assert_not_called()
+    if action == '--migrate':
+        migrate.assert_called_once_with(migrate_postgres.ROOT / 'ecommerce_saas.db', target)
+    else:
+        migrate.assert_not_called()
+    target.dispose.assert_called_once()
+    output = capsys.readouterr().out
+    assert 'omnichat-db' in output
+    assert 'private-password' not in output
+
+
+@pytest.mark.parametrize('arguments', [
+    ['--use-database-url', '--create'],
+    ['--use-database-url', '--migrate'],
+])
+def test_existing_database_cli_rejects_creation_or_unpaused_migration(monkeypatch, arguments):
+    monkeypatch.setattr('sys.argv', ['migrate_postgres', *arguments])
+    factory = MagicMock()
+    monkeypatch.setattr(migrate_postgres, 'make_engine', factory)
+    with pytest.raises(SystemExit) as error:
+        migrate_postgres.main()
+    assert error.value.code == 2
+    factory.assert_not_called()
 
 
 @pytest.mark.parametrize('name', ['projectflow', 'postgres', 'template1', 'bad;DROP DATABASE projectflow', 'UPPER', 'a' * 64])

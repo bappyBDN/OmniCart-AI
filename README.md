@@ -145,7 +145,7 @@ admin credentials and existing passwords are never overwritten. The seed command
 only seeds a shop with **no products and no policies**; it refuses partial or
 already-populated catalogs. It never resets inventory, customers or orders.
 
-### PostgreSQL database: `omnichat`
+### PostgreSQL database
 
 The API supports PostgreSQL through Psycopg 3. All current application records use
 the same configured database: shops, inventory, policies, admin credentials,
@@ -153,6 +153,33 @@ customers, chat history, hashed access sessions, chat turn metadata, checkout
 drafts, orders, support cases, rejected orders, and the notification outbox.
 Derived embeddings can be rebuilt from PostgreSQL; the old Chroma/checkpoint
 SQLite files are legacy backups and are not used by the new API.
+
+#### Existing Neon database: `omnichat-db`
+
+Set these values in your private `.env` (never commit credentials):
+
+```dotenv
+DATABASE_URL='postgresql://USER:PASSWORD@HOST/omnichat-db?sslmode=require&channel_binding=require'
+DATABASE_REQUIRE_POSTGRES=true
+```
+
+Check the connection, then **stop all API/Streamlit writers** and migrate existing
+local records into the empty remote database:
+
+```powershell
+.\venv\Scripts\python.exe -m backend.migrate_postgres --use-database-url --check
+.\venv\Scripts\python.exe -m backend.migrate_postgres --use-database-url --migrate --source-paused
+```
+
+This uses the database named in `DATABASE_URL`, not `POSTGRES_ADMIN_URL` or
+`POSTGRES_DATABASE`. It never creates another database or overwrites populated
+tables. All imported row counts are verified, and the original SQLite is retained.
+Restart with `run.ps1`; `/api/health` should report `database.backend=postgresql`
+and `database.name=omnichat-db`. For Docker Compose, separately set
+`DOCKER_DATABASE_URL` to the same private connection string. For Render, configure
+`DATABASE_URL` in the service environment; local `.env` files are not uploaded.
+
+#### Creating a separate database from an administrative connection
 
 1. Install the current `backend/requirements.txt` (includes `psycopg[binary]`).
 2. Put the administrative connection in `.env` as `POSTGRES_ADMIN_URL`, and set

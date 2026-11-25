@@ -12,17 +12,17 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response
 from backend.config import ROOT
 
 load_dotenv(ROOT / ".env")
-VERIFY_TOKEN = os.getenv("VERIFY_TOKEN", "omnichat_bappys_4001-try")
-PAGE_ACCESS_TOKEN = os.getenv("PAGE_ACCESS_TOKEN", "")
-APP_SECRET = os.getenv("APP_SECRET", "")
-FACEBOOK_PAGE_ID = os.getenv("FACEBOOK_PAGE_ID", "")
+VERIFY_TOKEN = os.getenv("VERIFY_TOKEN", "omnichat_bappys_4001-try").strip()
+PAGE_ACCESS_TOKEN = os.getenv("PAGE_ACCESS_TOKEN", "").strip()
+APP_SECRET = os.getenv("APP_SECRET", "").strip()
+FACEBOOK_PAGE_ID = os.getenv("FACEBOOK_PAGE_ID", "").strip()
 GRAPH_API_BASE = "https://graph.facebook.com/v21.0"
 MAX_BODY_BYTES = 1_048_576
 log = logging.getLogger(__name__)
 router = APIRouter(tags=["Messenger"])
 
 
-@router.get("/")
+@router.get("/healthz")
 async def active():
     """Lightweight liveness probe; does not call the database or an LLM."""
     return {"status": "active"}
@@ -106,25 +106,53 @@ class MessengerSendError(RuntimeError):
     """Safe-to-log error: never includes access tokens or Graph response bodies."""
 
 
+class MessengerConfigurationError(MessengerSendError):
+    """Invalid local credentials; no Send API request was attempted."""
+
+
+def page_authorization_headers():
+    """Trim copy/paste padding, but never silently rewrite a damaged token.
+
+    HTTPX/h11 rejects CR/LF in header values with LocalProtocolError. Check
+    credentials first so errors are actionable without logging the secret.
+    """
+    token = PAGE_ACCESS_TOKEN.strip()
+    if not token:
+        message = "PAGE_ACCESS_TOKEN is not configured"
+    elif (not token.isascii() or any(ord(char) <= 32 or ord(char) >= 127 for char in token)
+          or '"' in token or "'" in token):
+        message = ("PAGE_ACCESS_TOKEN must be one ASCII token without internal whitespace, "
+                   "control characters, quotes, or a Bearer prefix. "
+                   "Paste only the raw Page token in the server environment.")
+    else:
+        return {"Authorization": f"Bearer {token}"}
+    log.error("Messenger configuration error: %s", message)
+    raise MessengerConfigurationError(message)
+
+
 async def send_text_reply(sender_id: str, text: str):
     """Send a RESPONSE within Meta's messaging window; split at the 2,000-char limit.
 
     Do not blindly retry timeouts: Meta may already have delivered the message.
     """
-    if not PAGE_ACCESS_TOKEN:
-        raise MessengerSendError("PAGE_ACCESS_TOKEN is not configured")
+    headers = page_authorization_headers()
     if not text:
         return
     timeout = httpx.Timeout(15, connect=5)
-    async with httpx.AsyncClient(timeout=timeout) as client:
+    # HTTP/1.1 is already HTTPX's default; keep it explicit for this integration.
+    async with httpx.AsyncClient(timeout=timeout, http2=False) as client:
         for offset in range(0, len(text), 2000):
             try:
                 response = await client.post(
                     f"{GRAPH_API_BASE}/me/messages",
-                    headers={"Authorization": f"Bearer {PAGE_ACCESS_TOKEN}"},
+                    headers=headers,
                     json={"recipient": {"id": sender_id}, "messaging_type": "RESPONSE",
                           "message": {"text": text[offset:offset + 2000]}},
                 )
+            except httpx.LocalProtocolError:
+                # Never stringify this exception: h11 may include Authorization.
+                log.error("Messenger Send API LocalProtocolError: check local HTTP/header and proxy configuration; request not retried")
+                raise MessengerSendError("Local HTTP protocol error; check headers and proxy configuration; delivery uncertain") from None
             except httpx.RequestError as exc:
                 log.error("Messenger Send API transport failure (%s); delivery may be uncertain", type(exc).__name__)
                 raise MessengerSendError("Send API transport failure; delivery uncertain") from None

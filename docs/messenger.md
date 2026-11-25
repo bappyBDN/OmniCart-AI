@@ -4,14 +4,17 @@ The existing FastAPI application exposes:
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| GET | `/` | `{"status":"active"}` liveness (no SQL/LLM calls) |
+| GET | `/` | Customer storefront |
+| GET | `/healthz` | `{"status":"active"}` liveness (no SQL/LLM calls) |
 | GET | `/webhook` | Meta's plain-text verification challenge |
 | POST | `/webhook` | Signed events, immediate `{"status":"ok"}`, then background processing |
-| GET | `/app` | Customer storefront (previously `/`) |
+| GET | `/app` | Customer storefront alias (existing links still work) |
 | GET | `/admin` | Operations console |
 
 Implementation: `backend/messenger.py`, `backend/messenger_service.py`.
 Dependencies `httpx` and `python-dotenv` are already in `backend/requirements.txt`.
+The website and Messenger share one FastAPI service without competing for `/`:
+Meta only calls `/webhook`. Do not point Meta's callback at the storefront or health check.
 
 ## 1. Configure secrets
 
@@ -45,7 +48,8 @@ Deploy this code and restart the service. Startup adds `messenger_contacts` and
 `messenger_events` to the **configured application database**, without replacing
 existing data. Ensure the database role can create those tables.
 
-1. Open `https://YOUR-SERVICE.onrender.com/` and wait for `{"status":"active"}`.
+1. Open `https://YOUR-SERVICE.onrender.com/healthz` and wait for `{"status":"active"}`.
+   Open `https://YOUR-SERVICE.onrender.com/` to use the webpage.
 2. In the Meta app's Messenger/Webhooks settings, configure the **Page** callback:
    - Callback URL: `https://YOUR-SERVICE.onrender.com/webhook`
    - Verify token: `omnichat_bappys_4001-try` (or your configured value).
@@ -121,6 +125,36 @@ when you explicitly pass `--subscribe`.
   Multiple workers need distributed per-conversation serialization and a durable
   worker queue. Set monitoring/alerts for background failures, token expiration,
   backlog and resource exhaustion. Adopt a retention policy for inbox message text.
+
+## Troubleshooting `LocalProtocolError`
+
+This is a local HTTP protocol failure, not a Meta permissions response. A common
+cause is an `Authorization` token copied with spaces, line breaks or other invalid
+header characters. The exception alone does not prove the exact cause.
+
+- Credentials are loaded with `.strip()` to remove surrounding whitespace. Internal
+  whitespace, control characters, non-ASCII characters and pasted quotes are
+  rejected before sending a request. Do not remove internal line breaks to guess
+  a repaired token: paste a fresh, intact Page token instead.
+- In Render **Environment**, set `PAGE_ACCESS_TOKEN` to the raw token on one line,
+  without quotes, `Bearer `, or `PAGE_ACCESS_TOKEN=`. `python-dotenv` removes normal
+  `.env` quotes, but Render's environment field is not a `.env` parser.
+- Both Graph clients explicitly use `http2=False`. HTTPX already defaults to
+  HTTP/1.1, so that setting alone does not repair an invalid header.
+- Save the Render environment and restart/redeploy. Existing process environment
+  variables take precedence over `.env`; changing a local file cannot repair a
+  malformed token configured on Render.
+- If validation passes but the protocol error persists, inspect outbound proxy
+  configuration (`HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`) without sharing proxy
+  credentials. The code does not disable required proxies or TLS verification.
+- Never print the full `LocalProtocolError`: it may contain the Authorization
+  header. Logs deliberately provide sanitized diagnostics instead.
+- After restarting, run `python -m backend.messenger_setup` for a **read-only**
+  token/subscription check, then send a **new** test message to the Page. Previously
+  failed events remain deduplicated and are not automatically replayed.
+
+The `/api/checkout`, `/api/profile`, and `/api/messages` HTTP 200 access logs are
+successful website requests, unrelated to this outbound Messenger failure.
 
 ## Tests
 

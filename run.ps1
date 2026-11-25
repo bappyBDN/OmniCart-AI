@@ -10,7 +10,7 @@ if (-not (Test-Path (Join-Path $Root 'frontend\dist\index.html'))) {
 }
 Push-Location $Root
 try {
-    Write-Host "OmniCart: http://localhost:$Port/app (Ctrl+C to stop)"
+    Write-Host "OmniCart: http://localhost:$Port/ (Ctrl+C to stop)"
     & $Python -m uvicorn backend.main:app --host 127.0.0.1 --port $Port
 } finally {
     Pop-Location

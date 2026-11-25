@@ -101,7 +101,7 @@ async def security_headers(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "same-origin"
     response.headers["X-Frame-Options"] = "DENY"
-    if request.url.path.startswith("/api") or request.url.path in ("/", "/webhook"):
+    if request.url.path.startswith("/api") or request.url.path in ("/healthz", "/webhook"):
         response.headers["Cache-Control"] = "no-store"
     elif request.url.path not in ("/docs", "/redoc"):
         response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'"

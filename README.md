@@ -29,8 +29,9 @@ npm --prefix frontend run build
 .\venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
 ```
 
-Open **http://localhost:8000/app**. API documentation: **http://localhost:8000/docs**.
-`GET /` returns `{"status":"active"}` for lightweight Messenger/Render liveness.
+Open **http://localhost:8000/**. API documentation: **http://localhost:8000/docs**.
+`GET /healthz` returns `{"status":"active"}` for lightweight Messenger/Render liveness.
+The storefront is also available at `/app`; Messenger uses `/webhook` independently.
 After the first build, `.\run.ps1` starts the same app. Use one API worker for
 the local SQLite deployment (chat locks/rate limits are per process).
 

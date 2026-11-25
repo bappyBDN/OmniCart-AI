@@ -2,8 +2,14 @@ import { test, expect } from '@playwright/test'
 import { createHmac } from 'node:crypto'
 
 test('Messenger liveness, plain-text verification and signed receipt acknowledgement', async ({ request }) => {
-  const health = await request.get('/')
+  const health = await request.get('/healthz')
   expect(await health.json()).toEqual({ status: 'active' })
+  const storefront = await request.get('/')
+  expect(storefront.status()).toBe(200)
+  expect(storefront.headers()['content-type']).toContain('text/html')
+  const alias = await request.get('/app')
+  expect(alias.status()).toBe(200)
+  expect(await alias.text()).toBe(await storefront.text())
   const verification = await request.get('/webhook', { params: {
     'hub.mode': 'subscribe', 'hub.verify_token': 'browser-test-verify', 'hub.challenge': '123456',
   } })
@@ -22,7 +28,7 @@ test('Messenger liveness, plain-text verification and signed receipt acknowledge
 test('shopping assistant returns an answer with inspectable sources', async ({ page }) => {
   const errors = []
   page.on('pageerror', error => errors.push(error.message))
-  await page.goto('/app')
+  await page.goto('/')
   await page.getByRole('button', { name: 'Start shopping' }).click()
   await expect(page.getByRole('heading', { name: 'Hi there! What’s on your mind?' })).toBeVisible()
   await page.getByRole('textbox', { name: 'Message OmniCart' }).fill('What is the cotton shirt price?')
@@ -37,7 +43,7 @@ test('shopping assistant returns an answer with inspectable sources', async ({ p
 })
 
 test('profile, catalog and user-confirmed checkout work end to end', async ({ page }) => {
-  await page.goto('/app')
+  await page.goto('/')
   await page.getByRole('button', { name: 'Start shopping' }).click()
   await page.getByRole('button', { name: 'My profile', exact: true }).click()
   await page.getByLabel('Full name', { exact: true }).fill('Browser Shopper')
@@ -62,14 +68,14 @@ test('profile, catalog and user-confirmed checkout work end to end', async ({ pa
 })
 
 test('human support can take over, reply, and resolve a case', async ({ page, context }) => {
-  await page.goto('/app')
+  await page.goto('/')
   await page.getByRole('button', { name: 'Start shopping' }).click()
   await page.getByRole('button', { name: 'Talk to the team', exact: true }).click()
   await expect(page.getByText('Human support is active.', { exact: false })).toBeVisible()
   await page.getByRole('textbox', { name: 'Message OmniCart' }).fill('Please help with my delivery.')
   await page.getByRole('button', { name: 'Send message' }).click()
   const admin = await context.newPage()
-  await admin.goto('/app')
+  await admin.goto('/')
   await admin.getByRole('button', { name: 'Shop administration' }).click()
   await admin.getByLabel('Email address', { exact: true }).fill('browser-test@example.com')
   await admin.getByLabel('Password', { exact: true }).fill('isolated-test-only')
@@ -108,7 +114,7 @@ test('separate knowledge studio publishes reviewed sources', async ({ page }) =>
 })
 
 test('support desk keeps investigation notes private and resumes with a resolution', async ({ page, context }) => {
-  await page.goto('/app')
+  await page.goto('/')
   await page.getByRole('button', { name: 'Start shopping' }).click()
   await page.getByRole('button', { name: 'Talk to the team', exact: true }).click()
   const admin = await context.newPage()

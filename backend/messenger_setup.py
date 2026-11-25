@@ -7,7 +7,8 @@ import argparse
 
 import httpx
 
-from backend.messenger import APP_SECRET, FACEBOOK_PAGE_ID, GRAPH_API_BASE, PAGE_ACCESS_TOKEN
+from backend.messenger import (APP_SECRET, FACEBOOK_PAGE_ID, GRAPH_API_BASE,
+                               MessengerConfigurationError, page_authorization_headers)
 
 
 class SetupError(RuntimeError):
@@ -17,6 +18,8 @@ class SetupError(RuntimeError):
 def graph_request(client, method, path, **kwargs):
     try:
         response = client.request(method, f"{GRAPH_API_BASE}/{path}", **kwargs)
+    except httpx.LocalProtocolError:
+        raise SetupError("Local HTTP protocol error. Check Page token formatting and HTTP/proxy configuration.") from None
     except httpx.RequestError:
         raise SetupError("Cannot reach Meta Graph API. Check network connectivity.") from None
     try:
@@ -63,15 +66,16 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--subscribe", action="store_true", help="Subscribe the token's Page to messages and messaging_postbacks")
     args = parser.parse_args()
-    if not PAGE_ACCESS_TOKEN:
-        parser.error("Configure PAGE_ACCESS_TOKEN in .env or the server environment.")
+    try:
+        headers = page_authorization_headers()
+    except MessengerConfigurationError as exc:
+        parser.error(str(exc))
     if args.subscribe and not APP_SECRET:
         parser.error("Configure APP_SECRET before subscribing; POST events require signature verification.")
     if not APP_SECRET:
         print("Warning: APP_SECRET is missing. GET verification works, but POST events will return 503.")
     try:
-        with httpx.Client(headers={"Authorization": f"Bearer {PAGE_ACCESS_TOKEN}"},
-                          timeout=httpx.Timeout(15, connect=5)) as client:
+        with httpx.Client(headers=headers, http2=False, timeout=httpx.Timeout(15, connect=5)) as client:
             check_page(client, subscribe=args.subscribe)
     except SetupError as exc:
         parser.exit(1, str(exc) + "\n")

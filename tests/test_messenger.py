@@ -40,8 +40,8 @@ def signed_post(client, payload):
                        headers={'X-Hub-Signature-256': f'sha256={signature}', 'Content-Type': 'application/json'})
 
 
-def test_root_health_is_lightweight(webhook):
-    assert webhook.get('/').json() == {'status': 'active'}
+def test_healthz_is_lightweight(webhook):
+    assert webhook.get('/healthz').json() == {'status': 'active'}
 
 
 def test_verification_returns_exact_plain_text(webhook, monkeypatch):
@@ -177,6 +177,61 @@ def test_send_api_uses_bearer_and_splits_long_text(webhook, monkeypatch):
     assert ''.join(json.loads(r.content)['message']['text'] for r in requests) == 'x' * 2001
 
 
+@pytest.mark.parametrize('token', [
+    '  test-page-token  ', '\r\ntest-page-token\r\n', '\ttest-page-token\t',
+])
+def test_send_trims_token_padding_and_explicitly_uses_http1(webhook, monkeypatch, token):
+    monkeypatch.setattr(messenger, 'PAGE_ACCESS_TOKEN', token)
+    original = httpx.AsyncClient
+    requests, options = [], []
+
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(200, json={'message_id': 'outbound'})
+
+    def client_factory(**kwargs):
+        options.append(kwargs)
+        return original(transport=httpx.MockTransport(handler), **kwargs)
+
+    monkeypatch.setattr(messenger.httpx, 'AsyncClient', client_factory)
+    asyncio.run(messenger.send_text_reply('200', 'Hello'))
+    assert len(requests) == 1
+    assert requests[0].headers['authorization'] == 'Bearer test-page-token'
+    assert options[0]['http2'] is False
+
+
+@pytest.mark.parametrize('token', [
+    'private-token\nrest', 'private-token\r\nrest', 'private-token\trest',
+    'private-token rest', 'Bearer private-token', '"private-token"', "'private-token'",
+    'private-token\x00', 'private-token\x7f', 'private-token\u200b',
+])
+def test_invalid_tokens_fail_before_http_without_logging_secrets(webhook, monkeypatch, caplog, token):
+    monkeypatch.setattr(messenger, 'PAGE_ACCESS_TOKEN', token)
+    monkeypatch.setattr(messenger.httpx, 'AsyncClient',
+                        lambda **kwargs: pytest.fail('Invalid token must not create an HTTP client'))
+    with pytest.raises(messenger.MessengerConfigurationError, match='PAGE_ACCESS_TOKEN'):
+        asyncio.run(messenger.send_text_reply('200', 'Hello'))
+    assert 'Messenger configuration error' in caplog.text
+    assert 'private-token' not in caplog.text
+
+
+def test_local_protocol_error_has_safe_actionable_diagnostic(webhook, monkeypatch, caplog):
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        raise httpx.LocalProtocolError("Illegal header value b'Bearer private-token'", request=request)
+
+    mock_async_http(monkeypatch, handler)
+    with pytest.raises(messenger.MessengerSendError, match='Local HTTP protocol error') as error:
+        asyncio.run(messenger.send_text_reply('200', 'Hello'))
+    assert len(requests) == 1
+    assert 'private-token' not in str(error.value)
+    assert 'private-token' not in caplog.text
+    assert 'LocalProtocolError' in caplog.text
+    assert 'proxy configuration' in caplog.text
+
+
 @pytest.mark.parametrize('status', [400, 401, 403, 429, 500])
 def test_send_errors_are_redacted_and_not_retried(webhook, monkeypatch, caplog, status):
     requests = []
@@ -203,8 +258,9 @@ def test_send_timeout_is_safe(webhook, monkeypatch, caplog):
     assert 'sensitive error' not in caplog.text
 
 
-def test_send_without_page_token_is_rejected(webhook, monkeypatch):
-    monkeypatch.setattr(messenger, 'PAGE_ACCESS_TOKEN', '')
+@pytest.mark.parametrize('token', ['', '  ', '\r\n\t'])
+def test_send_without_page_token_is_rejected(webhook, monkeypatch, token):
+    monkeypatch.setattr(messenger, 'PAGE_ACCESS_TOKEN', token)
     with pytest.raises(messenger.MessengerSendError, match='not configured'):
         asyncio.run(messenger.send_text_reply('200', 'Hello'))
 
@@ -288,5 +344,76 @@ def test_subscription_errors_do_not_expose_meta_response():
     assert 'secret' not in str(error.value)
 
 
-def test_root_route_registered_before_frontend_catch_all(client):
-    assert client.get('/').json() == {'status': 'active'}
+def test_setup_uses_shared_token_cleanup_and_http1(webhook, monkeypatch):
+    monkeypatch.setattr(messenger, 'PAGE_ACCESS_TOKEN', '\r\n test-page-token \r\n')
+    monkeypatch.setattr(messenger_setup, 'APP_SECRET', 'test-app-secret')
+    monkeypatch.setattr('sys.argv', ['messenger_setup'])
+    original = httpx.Client
+    options = []
+
+    def client_factory(**kwargs):
+        options.append(kwargs)
+        return original(transport=httpx.MockTransport(lambda request: pytest.fail('No network expected')), **kwargs)
+
+    def check_page(client, subscribe=False):
+        assert client.headers['authorization'] == 'Bearer test-page-token'
+        assert subscribe is False
+
+    monkeypatch.setattr(messenger_setup.httpx, 'Client', client_factory)
+    monkeypatch.setattr(messenger_setup, 'check_page', check_page)
+    messenger_setup.main()
+    assert options[0]['http2'] is False
+
+
+def test_setup_rejects_bad_token_before_creating_client(webhook, monkeypatch, capsys):
+    monkeypatch.setattr(messenger, 'PAGE_ACCESS_TOKEN', 'private-token\nrest')
+    monkeypatch.setattr('sys.argv', ['messenger_setup'])
+    monkeypatch.setattr(messenger_setup.httpx, 'Client',
+                        lambda **kwargs: pytest.fail('Invalid token must not create an HTTP client'))
+    with pytest.raises(SystemExit) as error:
+        messenger_setup.main()
+    assert error.value.code == 2
+    output = capsys.readouterr().err
+    assert 'PAGE_ACCESS_TOKEN' in output
+    assert 'private-token' not in output
+
+
+def test_setup_local_protocol_errors_are_redacted():
+    def handler(request):
+        raise httpx.LocalProtocolError("Illegal header value b'Bearer private-token'", request=request)
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(messenger_setup.SetupError, match='Local HTTP protocol error') as error:
+            messenger_setup.graph_request(client, 'GET', 'me')
+    assert 'private-token' not in str(error.value)
+
+
+def test_storefront_health_and_webhook_coexist(client, monkeypatch, tmp_path):
+    from backend import main
+    dist = tmp_path / 'dist'
+    dist.mkdir()
+    (dist / 'index.html').write_text('<html>Customer storefront</html>', encoding='utf-8')
+    (dist / 'admin.html').write_text('<html>Admin console</html>', encoding='utf-8')
+    monkeypatch.setattr(main, 'DIST', dist)
+    monkeypatch.setattr(messenger, 'VERIFY_TOKEN', 'test-verify')
+    monkeypatch.setattr(messenger, 'APP_SECRET', 'test-app-secret')
+
+    for path in ('/', '/app'):
+        response = client.get(path)
+        assert response.status_code == 200
+        assert response.headers['content-type'].startswith('text/html')
+        assert response.text == '<html>Customer storefront</html>'
+        assert 'Content-Security-Policy' in response.headers
+    assert client.get('/admin').text == '<html>Admin console</html>'
+    health = client.get('/healthz')
+    assert health.json() == {'status': 'active'}
+    assert health.headers['Cache-Control'] == 'no-store'
+    verification = client.get('/webhook', params={
+        'hub.mode': 'subscribe', 'hub.verify_token': 'test-verify', 'hub.challenge': '123456',
+    })
+    assert verification.status_code == 200
+    assert verification.text == '123456'
+    assert verification.headers['content-type'].startswith('text/plain')
+    receipt = signed_post(client, {'object': 'page', 'entry': []})
+    assert receipt.status_code == 200
+    assert receipt.json() == {'status': 'ok'}

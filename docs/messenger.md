@@ -105,7 +105,9 @@ when you explicitly pass `--subscribe`.
 - Echoes cannot trigger replies. Page ID plus message ID deduplicates events in SQL,
   including across workers. Do not delete deduplication rows while Meta might retry.
 - Replies use `POST https://graph.facebook.com/v21.0/me/messages`, a Bearer token,
-  `messaging_type=RESPONSE`, explicit timeouts and 2,000-character chunks. Respect
+  `messaging_type=RESPONSE`, `http2=False`, a 15-second timeout and 2,000-character
+  text chunks. Cited product photos follow the cleaned text as native image
+  attachments; details are below. Respect
   Meta's messaging window and policies; this does not enable unsolicited messaging.
 - No automatic checkout confirmation is possible through text. Drafts remain
   proposals. Admin-console replies are not yet forwarded to Messenger.
@@ -125,6 +127,60 @@ when you explicitly pass `--subscribe`.
   Multiple workers need distributed per-conversation serialization and a durable
   worker queue. Set monitoring/alerts for background failures, token expiration,
   backlog and resource exhaustion. Adopt a retention policy for inbox message text.
+
+## Conversation, broad browsing and native product photos
+
+- `backend/prompts.py` supplies the sales-style and query-resolution prompt
+  templates. Greetings such as **Hello ai**, small talk and thanks bypass product
+  retrieval and model calls. The assistant stays honest about being an AI.
+- Broad requests such as **Give me some product name**, **Can you tell me about
+  your product**, and **what do you sell** call a deterministic live SQL browse
+  path / `browse_catalog_tool`. Up to five in-stock products include their real
+  discounted prices and descriptions. This is not a best-seller ranking. Specific
+  category/price/variant requests keep using filtered RAG, never an unrelated list.
+- `backend/chat_memory.py` loads up to eight recent turns and older rows for a
+  bounded summary. Web access sessions and `(page_id, sender_id)` contacts resolve
+  to separate persistent customer records in the configured PostgreSQL database.
+  Restarting the service does not reset that memory.
+- The final answer's actual product citations identify the discussed products,
+  rather than every candidate retrieved by RAG. `rewrite_product_query` in
+  `backend/conversation.py` adds the resolved name/SKU to the retrieval query before
+  RAG; the original user message stays unchanged in the LLM dialogue. Only identity
+  carries over: price, sizes and stock are reloaded from live SQL. A genuinely
+  ambiguous list asks which product instead of guessing. Explicit topic resets
+  prevent old-product recovery.
+- `backend/messenger_format.py` extracts/deduplicates product tags, removes source
+  citations and Markdown, then reads `Product` plus `api_product_images` for the
+  current shop. It never uses a model-authored or historical image URL. The stored
+  web response is unchanged, so the website retains its citations and UI cards.
+- `send_product_image` in `backend/messenger.py` sends each photo after the text:
+
+  ```json
+  {
+    "recipient": {"id": "PAGE_SCOPED_SENDER_ID"},
+    "messaging_type": "RESPONSE",
+    "message": {
+      "attachment": {
+        "type": "image",
+        "payload": {"url": "https://YOUR-CDN/product.jpg", "is_reusable": true}
+      }
+    }
+  }
+  ```
+
+- Save the merchant's real, licensed image URL under **Admin → Catalogue → Image**.
+  Meta must be able to fetch it over public HTTPS without a login. Relative web
+  illustration URLs, SVGs, localhost/private IPs, embedded credentials and expired
+  or inaccessible URLs are not usable product photography. No image is invented
+  when a stored photo is missing. URLs are validated without fetching them in the
+  webhook; the remote host still needs to return an image MIME type supported by Meta.
+- Browse/picture requests send at most five images. Price/stock-only follow-ups
+  remain text-only. A missing photo is explained when requested; representative
+  photos are explicitly labeled, since the supplied catalog's demo Unsplash images
+  are not guaranteed to depict the exact SKU.
+- If text succeeds but an image fails, the event is marked failed and **not**
+  automatically replayed, avoiding duplicate text/images. Reconcile it manually
+  before replay. All existing Meta permission/signature requirements still apply.
 
 ## Troubleshooting `LocalProtocolError`
 
@@ -159,7 +215,7 @@ successful website requests, unrelated to this outbound Messenger failure.
 ## Tests
 
 ```powershell
-.\venv\Scripts\python.exe -m pytest tests/test_messenger.py -q
+.\venv\Scripts\python.exe -m pytest tests/test_messenger.py tests/test_sales_experience.py -q
 ```
 
 Tests use an isolated SQLite fixture and a mocked Send API: they never use the

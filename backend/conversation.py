@@ -6,6 +6,58 @@ from decimal import Decimal, InvalidOperation
 from backend.language import normalize_query
 
 
+def smalltalk_reply(query, locale="en"):
+    """Only social turns: mixed shopping/support requests must still be routed."""
+    text = unicodedata.normalize("NFKC", query).casefold().strip(" \t\r\n.!?।,")
+    bangla = locale.startswith("bn")
+    greeting = r"(?:hi|hello|hey|good morning|good afternoon|good evening|হাই|হ্যালো|সালাম|আসসালামু আলাইকুম|assalamualaikum)"
+    addressee = r"(?:[,\s]+(?:ai|bot|there|omnicart|friend|assistant))?"
+    wellbeing = r"(?:how are you(?: doing)?|how's it going|how is it going|কেমন আছ(?:েন|ো)?|কেমন আছেন)"
+    if re.fullmatch(greeting + addressee + r"(?:[,.!?\s]+" + wellbeing + r")?", text):
+        return "হ্যালো! কী খুঁজছেন আজ? পছন্দ করতে সাহায্য করতে পারি।" if bangla else "Hi! What are you shopping for today? I'd be happy to help you find something."
+    if re.fullmatch(wellbeing, text):
+        return "আমি সাহায্য করতে প্রস্তুত! আজ কী খুঁজছেন?" if bangla else "I'm here and ready to help! What are you looking for today?"
+    if re.fullmatch(r"(?:thanks|thank you|thank you so much|ধন্যবাদ|dhonnobad|dhanyabad)(?:\s+(?:ai|bot|omnicart))?", text):
+        return "স্বাগতম! আর কিছু লাগলে বলবেন।" if bangla else "You're welcome! Let me know if you'd like anything else."
+    return None
+
+
+def recent_discussed_sources(history, sources):
+    """Disambiguate retrieval noise using the most recent actual assistant mention."""
+    choices = product_choices(sources)
+    for row in reversed(history or []):
+        if row.sender != "ai":
+            continue
+        text = row.message_text or ""
+        cited = set(re.findall(r"\[product:([^\]\s]+)\]", text))
+        matches = [s for s in choices if s["data"]["product_id"] in cited]
+        if not matches:
+            matches = [s for s in choices if re.search(
+                rf"(?<!\w){re.escape(s['title'].casefold())}(?!\w)", text.casefold())]
+        if matches:
+            return matches
+    return choices
+
+
+def rewrite_product_query(query, focus_product_id, sources, history):
+    """A deterministic, auditable query rewriter; no extra LLM call or guessed SKU."""
+    if not focus_product_id:
+        return query
+    choices = recent_discussed_sources(history, sources)
+    product = next((s for s in choices if s["data"]["product_id"] == focus_product_id), None)
+    name = product["title"] if product else ""
+    return f"{query}\nDiscussed product: {name} ({focus_product_id})"
+
+
+def implicit_product_followup(query):
+    """Attribute-only turns need context; 'picture of running shoes' is discovery."""
+    text = normalize_query(query).original.casefold()
+    words = re.findall(r"[a-z]+", text)
+    subject = re.search(r"\b(?:pictures?|images?|photos?|sizes?|stock)\b", text)
+    filler = set("give send show me us a an the its it this that one product item please picture pictures photo photos image images what which sizes size is in stock available now currently do does you have can could would i see of for s".split())
+    return bool(subject and words and all(word in filler for word in words) and not re.search(r"\d|sku_", text))
+
+
 def currency_question(query):
     text = normalize_query(query).text + " " + query.casefold()
     return bool(re.search(r"\b(?:bdt|tk|taka|bangladeshi|bangladesh\s+currency|exchange\s+rate)\b|বাংলাদেশি|বাংলাদেশী|টাকায়|টাকায়|টাকাতে|বিনিময়\s*হার", text))
@@ -49,8 +101,8 @@ def purchase_request(query):
 def referential_question(query):
     text = normalize_query(query).text
     return bool(re.search(
-        r"\b(?:it|this|that|its|they|them|their|these|those|one|color|colour|size|price|cost|stock|"
-        r"available|availability|details|more|image|photo|picture)\b|"
+        r"\b(?:it|this|that|its|they|them|their|these|those|one|colors?|colours?|sizes?|price|cost|stock|"
+        r"available|availability|details|more|images?|photos?|pictures?)\b|"
         r"এটা|এটি|এটার|এটির|ওটা|ওটির|সেটা|রঙ|সাইজ|দাম|স্টক|বিস্তারিত|ছবি|একই", text)
         or currency_question(query) or purpose_question(query))
 

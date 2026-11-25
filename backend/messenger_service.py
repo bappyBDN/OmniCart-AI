@@ -16,7 +16,8 @@ from starlette.concurrency import run_in_threadpool
 
 from backend.config import settings
 from backend.database import transaction
-from backend.messenger import send_text_reply
+from backend.messenger import send_product_image, send_text_reply
+from backend.messenger_format import format_messenger_response
 from backend.records import MessengerContact, MessengerEvent
 from backend.schemas import ChatInput
 from models import Customer, Shop
@@ -76,7 +77,7 @@ def generate_reply(page_id, sender_id, message_id, text, background):
         if response.get("drafts") and answer:
             # A Messenger text message cannot confirm a checkout draft in the UI.
             answer += "\nThis is only a proposal, not a confirmed order. Please contact the shop to complete checkout."
-        return answer
+        return {**response, "answer": answer}
 
 
 def mark_event(page_id, message_id, status, error=None):
@@ -94,10 +95,13 @@ async def process_message(page_id: str, sender_id: str, message_id: str, text: s
         if not claimed:
             return
         notifications = BackgroundTasks()
-        answer = await run_in_threadpool(generate_reply, page_id, sender_id, message_id, text, notifications)
-        if answer:
-            await send_text_reply(sender_id, answer)
-        await run_in_threadpool(mark_event, page_id, message_id, "sent" if answer else "human_handoff")
+        response = await run_in_threadpool(generate_reply, page_id, sender_id, message_id, text, notifications)
+        reply = await run_in_threadpool(format_messenger_response, response, settings.shop_id, text)
+        if reply.text:
+            await send_text_reply(sender_id, reply.text)
+        for product in reply.products:
+            await send_product_image(sender_id, product["image_url"])
+        await run_in_threadpool(mark_event, page_id, message_id, "sent" if reply.text or reply.products else "human_handoff")
         try:
             await notifications()
         except Exception:

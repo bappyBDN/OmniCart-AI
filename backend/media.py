@@ -5,10 +5,42 @@ explicit category illustration, not a claim about the product's exact appearance
 An admin can attach a real image URL, which the same endpoint redirects to.
 """
 import html
+import ipaddress
+from urllib.parse import urlsplit, urlunsplit
 
 from backend.database import transaction
 from backend.records import ProductImage
 from models import Product
+
+
+def public_image_url(value):
+    """Validate a stored URL for Meta to fetch; never fetch user/model URLs here.
+
+    Relative SVG illustration endpoints are for the web, not Messenger photos.
+    A syntactically public URL can still fail remotely (auth, expiry, bad MIME).
+    """
+    if not isinstance(value, str) or not value.strip():
+        return None
+    value = value.strip()
+    if any(ord(char) <= 32 or ord(char) == 127 for char in value):
+        return None
+    try:
+        url = urlsplit(value)
+        host = (url.hostname or "").lower()
+        port = url.port
+        if (url.scheme != "https" or not host or url.username or url.password
+                or port not in (None, 443) or host == "localhost"
+                or host.endswith((".localhost", ".local", ".internal")) or url.path.lower().endswith(".svg")):
+            return None
+        try:
+            if not ipaddress.ip_address(host).is_global:
+                return None
+        except ValueError:
+            if "." not in host or not host.isascii():
+                return None
+        return urlunsplit((url.scheme, url.netloc, url.path, url.query, ""))
+    except ValueError:
+        return None
 
 
 def product_image_url(product_id: str) -> str:

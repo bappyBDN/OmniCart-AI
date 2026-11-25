@@ -68,10 +68,10 @@ def test_repeated_product_miss_clarifies_without_forcing_handoff(store, monkeypa
     monkeypatch.setattr(agent, 'chat_model', lambda **kw: (_ for _ in ()).throw(AssertionError('No evidence should not call a model')))
     first = agent.run_agent(store['customer_id'], 'shop_01', 'dragon eggs', [])
     assert not first['handoff'] and first['offer_handoff']
-    assert 'couldn’t find' in first['answer'] or "couldn't find" in first['answer']
+    assert "haven't found" in first['answer'] and first['sources'] == []
     second = agent.run_agent(store['customer_id'], 'shop_01', 'dragon eggs', [])
     assert second['offer_handoff'] and not second['handoff']
-    assert 'clarify' in second['answer'].lower()
+    assert 'share its name' in second['answer'].lower()
 
 
 def test_product_miss_falls_back_to_published_policy_only_when_relevant(client, admin_headers, store, monkeypatch):

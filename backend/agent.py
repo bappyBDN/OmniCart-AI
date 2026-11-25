@@ -19,13 +19,16 @@ from pydantic import BaseModel, Field
 
 from backend import graph_rag
 from backend.commerce import escalate, get_customer, prepare_order, profile_dict, quote_product, save_profile
-from backend.catalog import catalog_summary, is_catalog_count_question
+from backend.catalog import browse_catalog, catalog_summary, is_catalog_browse_question, is_catalog_count_question
+from backend.chat_memory import RECENT_MESSAGES, history_product_sources
 from backend.database import transaction
 from backend.checkpoints import DatabaseSaver
 from backend.config import settings
 from backend.conversation import (alternative_request, currency_question, named_quantity, product_choices,
                                   purchase_request, purpose_question, referential_question, selected_choice,
-                                  stated_name, supplied_exchange_rate)
+                                  stated_name, supplied_exchange_rate, smalltalk_reply,
+                                  recent_discussed_sources, rewrite_product_query, implicit_product_followup)
+from backend.prompts import SALES_STYLE, QUERY_REWRITE_POLICY
 from backend.language import is_bangla, normalize_query
 from backend.llm import chat_model
 from backend.mcp_client import get_gateway
@@ -82,6 +85,7 @@ class AgentState(TypedDict, total=False):
     incoming_action: dict
     context_reset: bool
     explicit_product_query: bool
+    retrieval_query: str
 
 
 class GroundedAnswer(BaseModel):
@@ -90,7 +94,7 @@ class GroundedAnswer(BaseModel):
     needs_human: bool = Field(default=False, description="True only if an actual customer case needs authority or operational capabilities that the tools cannot provide; not a routine policy question")
 
 
-SYSTEM = """You are OmniCart, a helpful AI shopping and support assistant, not a human employee.
+SYSTEM = SALES_STYLE + "\n" + """You are OmniCart, a helpful AI shopping and support assistant, not a human employee.
 Speak naturally: acknowledge the customer's concern, answer their actual question,
 and ask at most ONE useful follow-up. No robotic checklists or sales pressure.
 Treat the current request as the priority, recent chat as supporting context, and
@@ -216,6 +220,8 @@ def wants_product_media(query, has_image=False):
     if has_image:
         return True
     text = normalize(query)
+    if re.search(r"\b(?:images?|photos?|pictures?)\b|ছবি", text):
+        return True
     if re.search(r"\b(price|cost|stock|status|order|available|availability|how much)\b|দাম|স্টক|অর্ডার", text):
         return False
     return bool(re.search(
@@ -229,7 +235,7 @@ def build_context_window(history, query):
     recent, current_size = [], len(query)
     current_budget = max(2200, int(settings.context_max_chars * 0.55))
     for row in reversed(rows):
-        if len(recent) >= 8:
+        if len(recent) >= RECENT_MESSAGES:
             break
         if recent and current_size + len(row.message_text or "") > current_budget:
             break
@@ -351,10 +357,38 @@ def focused_conversation(state, product, shop_id, customer_id):
             label = "ভ্যারিয়েন্ট" if str(data.get("category", "")).casefold() in ("health", "grocery") else "রঙ"
             return reply(f"**{name}**-এর ক্যাটালগে {label} হিসেবে **{colors}** দেওয়া আছে। এর বাইরে অন্য বিকল্পের যাচাই করা তথ্য নেই।" if bangla else
                          f"The catalogue lists **{colors}** for **{name}**. I don't have verified information about additional colours or variants.")
+    if re.search(r"\b(?:images?|photos?|pictures?)\b|ছবি", text):
+        return reply(f"অবশ্যই—**{name}**।" if bangla else f"Here's **{name}**.", show_images=True)
+    if state.get("previous_sources"):
+        details = []
+        if re.search(r"\bsizes?\b|সাইজ", text):
+            sizes = ", ".join(map(str, data.get("sizes") or []))
+            details.append((f"সাইজ: {sizes}।" if bangla else f"Sizes: {sizes}.") if sizes else
+                           ("ক্যাটালগে সাইজ দেওয়া নেই।" if bangla else "No sizes are listed in the catalog."))
+        if re.search(r"\bstock\b|\bavailable\b|\bavailability\b|স্টক", text):
+            stock = int(data.get("stock_count") or 0)
+            details.append((f"এখন স্টকে {stock}টি আছে।" if bangla else f"There are {stock} in stock right now.") if stock else
+                           ("এখন স্টকে নেই।" if bangla else "It's currently out of stock."))
+        if details:
+            if re.search(r"\bprice\b|\bcost\b|দাম", text):
+                details.append(f"${price:.2f} USD.")
+            return reply(f"**{name}** — " + " ".join(details))
     return None
 
 
+def catalog_product_source(row):
+    return {"id": f"product:{row['product_id']}", "kind": "product", "title": row["name"],
+            "content": json.dumps(row, ensure_ascii=False), "data": row,
+            "score": 1.0, "confidence": 1.0, "retrieval": "catalog_sql"}
+
+
 def build_tools(customer_id, shop_id, raw_user_text, focus_product_id=None):
+    @tool
+    def browse_catalog_tool(limit: int = 5) -> dict:
+        """Browse 3–5 in-stock products from the live shop catalog for broad discovery. Not a popularity ranking. Use product_search_tool for specific names, budgets or variants."""
+        rows = browse_catalog(shop_id, max(3, min(limit, 5)))
+        return {"sources": [catalog_product_source(row) for row in rows]}
+
     @tool
     def catalog_summary_tool(category: str | None = None) -> dict:
         """Count the whole live catalog or an exact category. Returns distinct product count, in/out-of-stock product counts and individual stock units. Never infer these from top-k search results."""
@@ -420,7 +454,7 @@ def build_tools(customer_id, shop_id, raw_user_text, focus_product_id=None):
         result = graph_rag.retrieve(image_description, shop_id, "product", 5)
         return {"sources": result.get("sources", []), "visual_search": True}
 
-    return [catalog_summary_tool, product_search_tool, policy_search_tool, check_user_status_tool, update_user_info_tool,
+    return [catalog_summary_tool, browse_catalog_tool, product_search_tool, policy_search_tool, check_user_status_tool, update_user_info_tool,
             quote_product_tool, process_order_tool, order_status_tool, send_email_to_admin, vision_to_product_search_tool]
 
 
@@ -479,6 +513,27 @@ def retrieve_node(state, config: RunnableConfig):
     shop_id = config["configurable"]["shop_id"]
     query = state["query"]
     vision_usage = None
+    social = smalltalk_reply(query, state.get("locale", "en")) if not state.get("image") else None
+    if social:
+        return {"sources": [], "answer": social, "model_tier": "rules", "show_images": False,
+                "trace": add_trace(state, "conversation", "Social turn; no RAG or model lookup")}
+    if not state.get("image") and is_catalog_browse_question(query):
+        rows = browse_catalog(shop_id, 5)
+        sources = [catalog_product_source(row) for row in rows]
+        bangla = state.get("locale", "en").startswith("bn")
+        if rows:
+            lines = ["অবশ্যই! স্টকে থাকা কিছু পণ্য দেখুন:" if bangla else "Of course! Here are a few things we have in stock:"]
+            for row in rows:
+                detail = (row.get("description") or row.get("category") or "")[:110]
+                lines.append(f"- **{row['name']}** — ${row['effective_price']:.2f} USD; {detail} [product:{row['product_id']}]")
+            lines.append("কোনটি সম্পর্কে জানতে চান?" if bangla else "Which one would you like to know more about?")
+            answer = "\n".join(lines)
+        else:
+            answer = "এই মুহূর্তে কোনো পণ্য স্টকে নেই। কোনো নির্দিষ্ট পণ্য খুঁজছেন?" if bangla else "We're out of stock at the moment. Is there a particular item you're looking for?"
+        return {"answer": answer, "sources": sources, "model_tier": "rules", "show_images": bool(rows),
+                "focus_product_id": rows[0]["product_id"] if len(rows) == 1 else None, "context_reset": True,
+                "tool_facts": [{"tool": "browse_catalog_tool", "result": {"sources": sources}}],
+                "trace": add_trace(state, "tool", "browse_catalog_tool: sampled live in-stock SQL rows")}
     if not state.get("image") and is_catalog_count_question(query):
         context = config["configurable"]
         tool = next(t for t in build_tools(context["customer_id"], shop_id, context["raw_user_text"]) if t.name == "catalog_summary_tool")
@@ -493,16 +548,11 @@ def retrieve_node(state, config: RunnableConfig):
         source = {"id": "catalog:summary", "kind": "catalog", "title": "Live catalog inventory", "content": answer, "data": summary}
         return {"answer": answer, "sources": [source], "tool_facts": [{"tool": tool.name, "result": summary}], "model_tier": "rules",
                 "trace": add_trace(state, "tool", "catalog_summary_tool: counted live inventory with SQL")}
-    if re.fullmatch(r"\s*(hi|hello|hey|হাই|হ্যালো|সালাম|আসসালামু আলাইকুম|assalamualaikum)[!.।\s]*", query, re.I) and not state.get("image"):
-        greeting = "হ্যালো! পণ্য খুঁজতে, দোকানের নিয়ম জানতে বা অর্ডারে সাহায্য করতে পারি। কীভাবে সাহায্য করব?" if re.search(r"[\u0980-\u09ff]", query) else "Hi! I can help you find products, explain store policies, or check your orders. What can I help with?"
-        return {"sources": [], "answer": greeting, "model_tier": "rules", "trace": add_trace(state, "retrieve", "Greeting; no retrieval needed")}
     if re.search(r"are you (?:a |an )?(?:human|bot|ai)|who are you|আপনি.*(?:মানুষ|বট)|তুমি.*(?:মানুষ|বট)", query, re.I):
         answer = "আমি OmniCart-এর AI সহকারী। পণ্য ও দোকানের তথ্য খুঁজে দিতে পারি; দরকার হলে সাপোর্ট টিমের কাছে পাঠাব।" if is_bangla(query) else "I'm OmniCart's AI assistant. I can help with products and store information, and bring in the support team when you need a person."
         return {"sources": [], "answer": answer, "model_tier": "rules", "trace": add_trace(state, "retrieve", "Explained AI identity without impersonation")}
-    if re.fullmatch(r"\s*(thanks|thank you|thank you so much|ধন্যবাদ|dhonnobad|dhanyabad)[!.।\s]*", query, re.I):
-        return {"sources": [], "answer": "স্বাগতম! আর কোনো সাহায্য লাগলে বলবেন।" if is_bangla(query) else "You're welcome! Let me know if you need anything else.", "model_tier": "rules", "trace": add_trace(state, "retrieve", "Thanks; no model call")}
     if (not state.get("image") and state["route"] == "shopping" and not state.get("focus_product_id")
-            and (state.get("intent") in ("purchase", "currency", "purpose") or
+            and (state.get("intent") in ("purchase", "currency", "purpose") or implicit_product_followup(query) or
                  (len(product_choices(state.get("previous_sources"))) > 1 and referential_question(query)))
             and not state.get("explicit_product_query")):
         return clarify_product(state)
@@ -531,10 +581,9 @@ def retrieve_node(state, config: RunnableConfig):
                   f"Which product do you need {qty_without_focus} of? Send the product name or SKU and I'll check stock and price.")
         return {"sources": [], "answer": answer, "model_tier": "rules", "show_images": False,
                 "trace": add_trace(state, "retrieve", "Quantity without a focused product; asked for the product instead of listing the catalogue")}
-    # Resolve pronouns using previous cited products, not a guessed product ID.
-    if state.get("focus_product_id") and referential_question(query):
-        # Resolve identity first; never append two candidate titles and let top-k guess.
-        query += " " + state["focus_product_id"]
+    # Rewrite before RAG; the original request remains unchanged in messages.
+    if not state.get("image"):
+        query = state.get("retrieval_query", query)
     kind = "policy" if state["route"] == "support" else "product"
     graph_trace = []
 
@@ -572,8 +621,8 @@ def retrieve_node(state, config: RunnableConfig):
             answer = ("এই প্রশ্নের সঙ্গে মেলে এমন যাচাই করা পণ্য বা স্টোরের তথ্য পাচ্ছি না। "
                       "কোন পণ্য বা বিষয়টি বোঝাচ্ছেন, একটু নির্দিষ্ট করে বলবেন? চাইলে সাপোর্ট টিমের সাহায্যও নিতে পারেন।"
                       if is_bangla(query) else
-                      "I couldn't find a matching product or a verified store answer for that. "
-                      "Could you clarify which product or topic you mean? I can also connect you with the support team if you'd prefer.")
+                      "I haven't found that item in our catalog. Could you share its name or a little more detail? "
+                      "If you'd like, I can help you browse what we have.")
             return {"sources": [], "answer": answer, "offer_handoff": True, "unresolved": True, "model_tier": "rules",
                     "context_reset": state.get("context_reset", False) or not referential_question(state["query"]),
                     "trace": add_trace(state, "retrieve", "No product or policy source passed the relevance gate; offered help") + graph_trace}
@@ -728,8 +777,7 @@ def next_after_reason(state):
 def extractive_answer(state):
     sources = state.get("sources", [])
     bangla = is_bangla(state["query"])
-    heading = ("একটু বেশি সময় লাগছে, তবে যাচাইকৃত তথ্য এই:" if bangla
-               else "I can't give the full AI answer right now, but here's what the live records confirm:")
+    heading = "ক্যাটালগে যা পেলাম:" if bangla else "Here's what I found in our catalog:"
     if not sources:
         return "প্রাসঙ্গিক তথ্য পাওয়া যায়নি। পণ্যের নাম বা প্রশ্নটি আরও বিস্তারিত লিখুন।" if bangla else "I couldn't find relevant evidence. Please give the product name or a more specific question."
     # Never widen a focused follow-up into a list of other catalogue items.
@@ -818,7 +866,7 @@ def stock_claims_supported(answer, sources):
 
 def ground_node(state):
     if state.get("answer"):
-        return {"trace": add_trace(state, "ground", "Returned explicit service limitation")}
+        return {"trace": add_trace(state, "ground", "Returned deterministic conversational or evidence-backed answer")}
     last = state["messages"][-1]
     candidate = last.content if isinstance(last, AIMessage) and not last.tool_calls and isinstance(last.content, str) else ""
     if state.get("degraded") or not candidate:
@@ -950,10 +998,17 @@ def run_agent(customer_id, shop_id, query, history, previous_sources=None, image
     recent, historical_summary = build_context_window(history, query)
     conversation_context = conversation_context or {}
     incoming_action = conversation_context.get("pending_action") or {}
+    if (not previous_sources and history and referential_question(query)
+            and conversation_context.get("allow_history_recovery", True)):
+        previous_sources = history_product_sources(history, shop_id)
+    if referential_question(query) and not alternative_request(query):
+        previous_sources = recent_discussed_sources(recent, previous_sources)
     choices = product_choices(previous_sources)
-    identities = named_products(query, shop_id) if not image else []
+    social = smalltalk_reply(query, normalize_query(query).locale) if not image else None
+    browsing = is_catalog_browse_question(query) if not image else False
+    identities = named_products(query, shop_id) if not image and not social and not browsing else []
     unknown_sku = bool(re.search(r"\bSKU_\d+\b", query, re.I)) and not identities
-    previous_focus = followup_focus(query, previous_sources) if not image else None
+    previous_focus = followup_focus(query, previous_sources) if not image and not social and not browsing else None
     if identities:
         previous_focus = identities[0] if len(identities) == 1 and not alternative_request(query) else None
     if unknown_sku:
@@ -972,6 +1027,7 @@ def run_agent(customer_id, shop_id, query, history, previous_sources=None, image
     if (pending_rate or pending_quantity) and len(choices) == 1 and incoming_action.get("product_id") == choices[0]["data"]["product_id"]:
         # Invalid numbers still answer the pending field, not a new product search.
         previous_focus = incoming_action["product_id"]
+    retrieval_query = rewrite_product_query(query, previous_focus, previous_sources, recent)
     intent = ("purchase" if purchase_request(query) or continuing_purchase or continuing_name or pending_quantity else
               "currency" if currency_question(query) or pending_rate else "purpose" if purpose_question(query) else "")
     explicit_product_query = bool(identities or unknown_sku or
@@ -986,7 +1042,7 @@ def run_agent(customer_id, shop_id, query, history, previous_sources=None, image
         if previous_locale and previous_locale.startswith("bn"):
             locale = previous_locale
     prior_titles = [source.get("title") for source in (previous_sources or []) if source.get("kind") == "product"][:2]
-    context_note = (
+    context_note = QUERY_REWRITE_POLICY + "\n" + (
         "CONTEXT PRIORITY: The current user request is authoritative. Recent chat is secondary; "
         "the older summary is historical background only and must never override the current request. "
         "If the current turn is a follow-up, stay on the previously focused product until the user clearly changes topic. "
@@ -1016,11 +1072,12 @@ def run_agent(customer_id, shop_id, query, history, previous_sources=None, image
         else:
             result = graph.invoke(None if existing.values else {"messages": [*messages, HumanMessage(content=query)], "query": query, "image": bool(image),
                 "previous_sources": previous_sources or [], "sources": [], "tool_facts": [], "drafts": [],
-                "trace": [{"node": "context", "detail": f"Current turn prioritized; {len(recent)} recent messages; older history summarized"}],
+                "trace": [{"node": "context", "detail": f"Current turn prioritized; {len(recent)} recent messages; older history summarized"}]
+                         + ([{"node": "query_rewrite", "detail": f"Rewrote follow-up for {previous_focus} before RAG"}] if retrieval_query != query else []),
                 "rounds": 0, "degraded": False, "usage": empty_usage(), "handoff_consent": affirmative and prior_offer,
                 "intent": intent, "incoming_action": incoming_action, "pending_action": {},
                 "context_reset": unknown_sku, "explicit_product_query": explicit_product_query,
-                "shop_id": shop_id, "focus_product_id": previous_focus,
+                "shop_id": shop_id, "focus_product_id": previous_focus, "retrieval_query": retrieval_query,
                 "locale": locale,
                 "show_images": wants_product_media(query, bool(image)), "context_note": context_note}, config=config)
     finally:
@@ -1042,7 +1099,7 @@ def run_agent(customer_id, shop_id, query, history, previous_sources=None, image
              "intent": result.get("intent", ""), "pending_action": result.get("pending_action", {}),
              "context_reset": bool(result.get("context_reset", False)),
             "retrieval_mode": retrieval_mode, "retrieval_sources": len(sources),
-             "graph_version": "prd-2.3-core-1", "prompt_version": "commerce-4-context", "correlation_id": request_id or thread_id}
+             "graph_version": "prd-2.3-core-1", "prompt_version": "commerce-5-sales-memory", "correlation_id": request_id or thread_id}
 
 
 def resume_handoff(thread_id, note):

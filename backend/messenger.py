@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response
 
 from backend.config import ROOT
+from backend.media import public_image_url
 
 load_dotenv(ROOT / ".env")
 VERIFY_TOKEN = os.getenv("VERIFY_TOKEN", "omnichat_bappys_4001-try").strip()
@@ -135,19 +136,30 @@ async def send_text_reply(sender_id: str, text: str):
 
     Do not blindly retry timeouts: Meta may already have delivered the message.
     """
+    await _send_messages(sender_id, [{"text": text[offset:offset + 2000]} for offset in range(0, len(text), 2000)])
+
+
+async def send_product_image(sender_id: str, image_url: str):
+    """Send actual stored photography as a native Messenger image attachment."""
+    url = public_image_url(image_url)
+    if not url:
+        raise MessengerConfigurationError("Product image must use a public HTTPS photography URL")
+    await _send_messages(sender_id, [{"attachment": {"type": "image", "payload": {"url": url, "is_reusable": True}}}])
+
+
+async def _send_messages(sender_id, messages):
     headers = page_authorization_headers()
-    if not text:
+    if not messages:
         return
-    timeout = httpx.Timeout(15, connect=5)
     # HTTP/1.1 is already HTTPX's default; keep it explicit for this integration.
-    async with httpx.AsyncClient(timeout=timeout, http2=False) as client:
-        for offset in range(0, len(text), 2000):
+    async with httpx.AsyncClient(http2=False, timeout=15.0) as client:
+        for message in messages:
             try:
                 response = await client.post(
                     f"{GRAPH_API_BASE}/me/messages",
                     headers=headers,
                     json={"recipient": {"id": sender_id}, "messaging_type": "RESPONSE",
-                          "message": {"text": text[offset:offset + 2000]}},
+                          "message": message},
                 )
             except httpx.LocalProtocolError:
                 # Never stringify this exception: h11 may include Authorization.

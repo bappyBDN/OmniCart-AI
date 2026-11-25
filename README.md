@@ -70,7 +70,7 @@ models. No provider keys are exposed to React.
 Context is assembled in explicit priority order:
 
 1. **Current user request** — authoritative.
-2. **Recent chat** — up to eight messages inside a bounded character budget.
+2. **Recent chat** — up to eight user/assistant turns (16 messages) inside a bounded character budget.
 3. **Older history** — a compact, lower-priority summary (bounded), never allowed
    to override the current turn.
 
@@ -129,7 +129,7 @@ Optimisations in the current path:
   not call an LLM;
 - small-model routing/synthesis, with the larger DeepSeek tier reserved for
   comparisons and complex tasks;
-- last-eight-message context trimming with a character budget;
+- last-eight-turn context trimming (16 messages) with a character budget;
 - maximum five source chunks and short output limits;
 - Graph RAG uses exact SQL rows before embeddings;
 - citation/grounding checks prevent retrying invented facts;

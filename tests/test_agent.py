@@ -86,8 +86,8 @@ def test_context_window_prioritizes_recent_turns(store):
     rows = [ChatHistory(sender="user" if index % 2 == 0 else "ai", message_text=f"older-{index}") for index in range(30)]
     recent, summary = agent.build_context_window(rows, "current question")
     assert recent[-1].message_text == "older-29"
-    assert len(recent) <= 8
-    assert "older-8" in summary and "older-21" in summary
+    assert len(recent) == 16  # eight user/assistant turns, not eight messages
+    assert "older-0" in summary and "older-13" in summary
 
 
 def test_supervisor_selects_visual_specialist_for_image_turn(store):

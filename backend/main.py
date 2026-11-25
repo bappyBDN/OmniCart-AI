@@ -24,6 +24,7 @@ from backend.auth import admin_session, customer_session, current_session, issue
 from backend.commerce import (confirm_order, draft_dict, escalate, get_customer, order_dict,
                               prepare_order, profile_dict, save_profile)
 from backend.config import ROOT, settings
+from backend.chat_memory import _focused_sources, _previous_sources, load_conversation
 from backend.database import initialize, transaction
 from backend.notifications import deliver_notifications
 from backend.records import AccessSession, ChatTurn, Notification, OrderDraft, ProductImage
@@ -181,45 +182,6 @@ def voice_transcribe(payload: VoiceInput, request: Request, session=Depends(cust
     return transcribe_audio(payload.audio)
 
 
-def _focused_sources(response):
-    """Sources from a turn that stayed on exactly one cited product."""
-    sources = (response or {}).get("sources", [])
-    products = [source for source in sources if source.get("kind") == "product" and source.get("data")]
-    focus = (response or {}).get("focus_product_id")
-    focused = [source for source in products if source.get("id") == f"product:{focus}"]
-    if focus and focused:
-        return focused
-    return None
-
-
-def _previous_sources(recent_turns):
-    """Keep entity context across source-free clarification/policy turns.
-
-    Explicit topic resets stop recovery; degraded multi-product noise must never
-    replace the customer's last resolved product. Old rows are identity hints only:
-    Graph RAG rehydrates current shop-scoped price/stock before answering.
-    """
-    if not recent_turns:
-        return []
-    previous = recent_turns[0].response or {}
-    sources = previous.get("sources", [])
-    if previous.get("context_reset"):
-        return sources
-    if not previous.get("degraded") and any(s.get("kind") == "product" for s in sources):
-        return _focused_sources(previous) or sources
-    for turn in recent_turns[1:]:
-        response = turn.response or {}
-        if response.get("context_reset"):
-            break
-        recovered = _focused_sources(response)
-        if recovered:
-            return recovered
-        products = [s for s in response.get("sources", []) if s.get("kind") == "product" and s.get("data")]
-        if products and not response.get("degraded"):
-            return products
-    return sources
-
-
 @app.post("/api/chat")
 def chat(payload: ChatInput, background: BackgroundTasks, session=Depends(customer_session)):
     rate_limit(f"chat:{session.customer_id}", 20)
@@ -237,11 +199,7 @@ def chat(payload: ChatInput, background: BackgroundTasks, session=Depends(custom
                 return existing.response
             customer = get_customer(db, session.customer_id, session.shop_id)
             handoff = customer.human_intervention
-            history = list(reversed(db.query(ChatHistory).filter_by(customer_id=session.customer_id, shop_id=session.shop_id).order_by(ChatHistory.message_id.desc()).limit(24).all()))
-            recent_turns = db.query(ChatTurn).filter_by(customer_id=session.customer_id).order_by(ChatTurn.id.desc()).limit(8).all()
-            previous_sources = _previous_sources(recent_turns)
-            last_response = (recent_turns[0].response or {}) if recent_turns else {}
-            conversation_context = {key: last_response[key] for key in ("pending_action", "locale") if key in last_response}
+            history, previous_sources, conversation_context = load_conversation(db, session.customer_id, session.shop_id)
         if handoff:
             response = {"answer": "", "status": "queued_for_human",
                         "sources": [], "drafts": [], "trace": [{"node": "handoff", "detail": "Routed to human support"}],

@@ -8,6 +8,29 @@ from backend.language import normalize_query
 from models import Product
 
 
+def is_catalog_browse_question(value):
+    """Unfiltered discovery only; product names, budgets and variants stay in RAG."""
+    text = normalize_query(value).original.casefold()
+    if re.search(r"\d|sku_|[$€£৳]", text) or is_catalog_count_question(value):
+        return False
+    subject = re.search(r"\b(?:products?|items?|catalog|catalogue|collection|sell|selling|carry)\b|পণ্য|প্রোডাক্ট|পন্য", text)
+    if not subject:
+        return False
+    filler = set("hi hello hey ai please can could would will you your yours me us i we our do does are is a an the some any few available have has sell selling carry about tell give show see look list names name product products item items catalog catalogue collection what whats s which of at in store shop for browse introduce introduce me let lets to want like know may today now offer offerings and stock in-stock".split())
+    filler.update("আপনার আপনাদের তোমাদের কি কী পণ্য পন্য প্রোডাক্ট আছে দেখান দেখাও কিছু নাম বলুন বলো আমাকে কীভাবে কি কি সব ধরনের পণ্যের সম্পর্কে জানতে চাই".split())
+    words = re.findall(r"[a-z]+|[\u0980-\u09ff]+", text)
+    return bool(words) and all(word in filler for word in words)
+
+
+def browse_catalog(shop_id, limit=5):
+    """Stable examples from live inventory, not an invented popularity ranking."""
+    from backend.retrieval import product_dict
+    with transaction() as db:
+        rows = db.query(Product).filter(Product.shop_id == shop_id, Product.stock_count > 0).order_by(
+            Product.product_id).limit(max(1, min(int(limit), 5))).all()
+        return [product_dict(row) for row in rows]
+
+
 def catalog_summary(shop_id, category=None):
     with transaction() as db:
         query = db.query(

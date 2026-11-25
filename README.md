@@ -29,7 +29,8 @@ npm --prefix frontend run build
 .\venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
 ```
 
-Open **http://localhost:8000**. API documentation: **http://localhost:8000/docs**.
+Open **http://localhost:8000/app**. API documentation: **http://localhost:8000/docs**.
+`GET /` returns `{"status":"active"}` for lightweight Messenger/Render liveness.
 After the first build, `.\run.ps1` starts the same app. Use one API worker for
 the local SQLite deployment (chat locks/rate limits are per process).
 
@@ -43,6 +44,9 @@ npm --prefix frontend run dev
 The development UI is http://localhost:5173 and proxies `/api` to port 8000.
 
 ### Configuration and first-time setup
+
+For Facebook Page verification, signed Messenger events, and Page subscription,
+see [Messenger setup](docs/messenger.md). The callback is **`/webhook`** (GET/POST).
 
 Keep your existing `.env`, or copy `.env.example` and fill in your own values.
 Set `GROQ_API_KEY` (and optional backup keys), plus `DEEPSEEK_CHAT_API_KEY` for the

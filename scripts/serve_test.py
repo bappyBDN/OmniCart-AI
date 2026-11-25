@@ -10,6 +10,11 @@ def main():
     temp_root.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="omnicart-browser-", dir=temp_root) as directory:
         os.environ["DATABASE_URL"] = f"sqlite:///{(Path(directory) / 'browser.db').as_posix()}"
+        os.environ["DATABASE_REQUIRE_POSTGRES"] = "false"
+        os.environ["VERIFY_TOKEN"] = "browser-test-verify"
+        os.environ["APP_SECRET"] = "browser-test-app-secret"
+        os.environ["PAGE_ACCESS_TOKEN"] = ""
+        os.environ["FACEBOOK_PAGE_ID"] = ""
         os.environ["RAG_DENSE_ENABLED"] = "false"
         os.environ["EMAIL_ENABLED"] = "false"
         os.environ["MCP_ENABLED"] = "false"
@@ -32,7 +37,7 @@ def main():
             db.add(Admin(email="browser-test@example.com", name="Browser test admin", shop_id="shop_01",
                          password_hash=bcrypt.hashpw(b"isolated-test-only", bcrypt.gensalt(rounds=4)).decode()))
 
-        def fake_agent(customer_id, shop_id, query, history, previous_sources=None, image=None, request_id=None):
+        def fake_agent(customer_id, shop_id, query, history, previous_sources=None, image=None, request_id=None, conversation_context=None):
             sources = retriever.search("cotton tshirt", shop_id, "product", 1)
             return {"answer": "Premium Cotton T-Shirt is $19.99, with 15 in stock. [product:SKU_101]",
                     "sources": sources, "trace": [{"node": "retrieve", "detail": "Retrieved live catalog"}],

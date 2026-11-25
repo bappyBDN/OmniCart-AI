@@ -1,9 +1,28 @@
 import { test, expect } from '@playwright/test'
+import { createHmac } from 'node:crypto'
+
+test('Messenger liveness, plain-text verification and signed receipt acknowledgement', async ({ request }) => {
+  const health = await request.get('/')
+  expect(await health.json()).toEqual({ status: 'active' })
+  const verification = await request.get('/webhook', { params: {
+    'hub.mode': 'subscribe', 'hub.verify_token': 'browser-test-verify', 'hub.challenge': '123456',
+  } })
+  expect(verification.status()).toBe(200)
+  expect(verification.headers()['content-type']).toContain('text/plain')
+  expect(await verification.text()).toBe('123456')
+  const body = JSON.stringify({ object: 'page', entry: [{ id: '100', messaging: [{ delivery: { mids: ['test'] } }] }] })
+  const signature = createHmac('sha256', 'browser-test-app-secret').update(body).digest('hex')
+  const receipt = await request.post('/webhook', { data: body, headers: {
+    'Content-Type': 'application/json', 'X-Hub-Signature-256': `sha256=${signature}`,
+  } })
+  expect(receipt.status()).toBe(200)
+  expect(await receipt.json()).toEqual({ status: 'ok' })
+})
 
 test('shopping assistant returns an answer with inspectable sources', async ({ page }) => {
   const errors = []
   page.on('pageerror', error => errors.push(error.message))
-  await page.goto('/')
+  await page.goto('/app')
   await page.getByRole('button', { name: 'Start shopping' }).click()
   await expect(page.getByRole('heading', { name: 'Hi there! What’s on your mind?' })).toBeVisible()
   await page.getByRole('textbox', { name: 'Message OmniCart' }).fill('What is the cotton shirt price?')
@@ -18,7 +37,7 @@ test('shopping assistant returns an answer with inspectable sources', async ({ p
 })
 
 test('profile, catalog and user-confirmed checkout work end to end', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/app')
   await page.getByRole('button', { name: 'Start shopping' }).click()
   await page.getByRole('button', { name: 'My profile', exact: true }).click()
   await page.getByLabel('Full name', { exact: true }).fill('Browser Shopper')
@@ -43,14 +62,14 @@ test('profile, catalog and user-confirmed checkout work end to end', async ({ pa
 })
 
 test('human support can take over, reply, and resolve a case', async ({ page, context }) => {
-  await page.goto('/')
+  await page.goto('/app')
   await page.getByRole('button', { name: 'Start shopping' }).click()
   await page.getByRole('button', { name: 'Talk to the team', exact: true }).click()
   await expect(page.getByText('Human support is active.', { exact: false })).toBeVisible()
   await page.getByRole('textbox', { name: 'Message OmniCart' }).fill('Please help with my delivery.')
   await page.getByRole('button', { name: 'Send message' }).click()
   const admin = await context.newPage()
-  await admin.goto('/')
+  await admin.goto('/app')
   await admin.getByRole('button', { name: 'Shop administration' }).click()
   await admin.getByLabel('Email address', { exact: true }).fill('browser-test@example.com')
   await admin.getByLabel('Password', { exact: true }).fill('isolated-test-only')
@@ -89,7 +108,7 @@ test('separate knowledge studio publishes reviewed sources', async ({ page }) =>
 })
 
 test('support desk keeps investigation notes private and resumes with a resolution', async ({ page, context }) => {
-  await page.goto('/')
+  await page.goto('/app')
   await page.getByRole('button', { name: 'Start shopping' }).click()
   await page.getByRole('button', { name: 'Talk to the team', exact: true }).click()
   const admin = await context.newPage()

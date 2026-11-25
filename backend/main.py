@@ -30,6 +30,7 @@ from backend.records import AccessSession, ChatTurn, Notification, OrderDraft, P
 from backend.media import generated_product_svg, product_image_record
 from backend.voice import transcribe_audio
 from backend.prd_api import router as prd_router
+from backend.messenger import router as messenger_router
 from backend.language import is_bangla
 from backend.support import audit, graph_threads, list_cases, open_case, resume_customer
 from backend.usage import aggregate_usage
@@ -91,6 +92,7 @@ app = FastAPI(title="OmniCart Agentic RAG API", version="2.0.0", lifespan=lifesp
 app.add_middleware(CORSMiddleware, allow_origins=list(settings.cors_origins),
                    allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE"], allow_headers=["Authorization", "Content-Type"])
 app.include_router(prd_router)
+app.include_router(messenger_router)
 
 
 @app.middleware("http")
@@ -99,7 +101,7 @@ async def security_headers(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "same-origin"
     response.headers["X-Frame-Options"] = "DENY"
-    if request.url.path.startswith("/api"):
+    if request.url.path.startswith("/api") or request.url.path in ("/", "/webhook"):
         response.headers["Cache-Control"] = "no-store"
     elif request.url.path not in ("/docs", "/redoc"):
         response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'"

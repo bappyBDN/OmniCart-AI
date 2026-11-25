@@ -159,3 +159,21 @@ class GraphWrite(Base):
     task_path = Column(String, nullable=False, default="")
     payload_type = Column(String, nullable=False)
     payload = Column(LargeBinary, nullable=False)
+
+
+class MessengerContact(Base):
+    __tablename__ = "messenger_contacts"
+    page_id = Column(String, primary_key=True)
+    sender_id = Column(String, primary_key=True)
+    customer_id = Column(Integer, ForeignKey("customers.customer_id"), nullable=False, unique=True)
+
+
+class MessengerEvent(Base):
+    __tablename__ = "messenger_events"
+    page_id = Column(String, primary_key=True)
+    message_id = Column(String, primary_key=True)
+    sender_id = Column(String, nullable=False, index=True)
+    text = Column(Text, nullable=False)
+    status = Column(String, nullable=False, index=True)
+    error = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

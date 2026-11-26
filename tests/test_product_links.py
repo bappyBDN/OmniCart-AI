@@ -102,20 +102,21 @@ def test_generic_template_has_photo_price_stock_and_exact_web_link(monkeypatch):
     assert element['title'] == 'Batteries Pack'
     assert '$14.99' in element['subtitle'] and '80 in stock' in element['subtitle']
     assert element['image_url'] == 'https://cdn.example.com/batteries.jpg'
-    assert element['buttons'] == [{'type': 'web_url', 'title': 'View product',
-                                   'url': 'https://shop.example.com/products/SKU_183'},
-                                  {'type': 'web_url', 'title': 'Order now',
+    assert element['buttons'] == [{'type': 'web_url', 'title': 'Order now',
                                    'url': 'https://shop.example.com/products/SKU_183#order-form',
-                                   'webview_height_ratio': 'full'}]
-    assert element['default_action']['url'] == element['buttons'][0]['url']
+                                   'webview_height_ratio': 'full'},
+                                  {'type': 'postback', 'title': 'Order in chat', 'payload': 'ORDER_NOW:SKU_183'},
+                                  {'type': 'postback', 'title': 'More Details', 'payload': 'DETAILS:SKU_183'}]
+    assert element['default_action']['url'] == 'https://shop.example.com/products/SKU_183'
     assert options[0]['http2'] is False and options[0]['timeout'] == 15.0
 
 
-def test_cards_fail_safely_without_a_valid_site_origin(monkeypatch):
+def test_cards_keep_native_ordering_when_no_public_site_is_configured(monkeypatch):
     monkeypatch.setenv('PUBLIC_SITE_URL', '')
-    monkeypatch.setattr(messenger.httpx, 'AsyncClient', lambda **kwargs: pytest.fail('No request expected'))
-    with pytest.raises(messenger.MessengerConfigurationError):
-        asyncio.run(messenger.send_product_cards('200', [product_card()]))
+    element = messenger.product_card(product_card())
+    assert 'default_action' not in element
+    assert all(button['type'] == 'postback' for button in element['buttons'])
+    assert [button['payload'] for button in element['buttons']] == ['ORDER_NOW:SKU_183', 'DETAILS:SKU_183']
 
 
 def test_formatter_hydrates_the_correct_photo_and_link_for_the_same_sku(store):

@@ -30,6 +30,8 @@ from backend.notifications import deliver_notifications
 from backend.records import AccessSession, ChatTurn, Notification, OrderDraft, ProductImage
 from backend.media import generated_product_svg, product_image_record
 from backend.voice import transcribe_audio
+from backend import sentiment as mood
+from backend.conversation_state import record_sentiment, remember_turn, snapshot as conversation_snapshot
 from backend.prd_api import router as prd_router
 from backend.messenger import router as messenger_router
 from backend.language import is_bangla
@@ -192,6 +194,8 @@ def chat(payload: ChatInput, background: BackgroundTasks, session=Depends(custom
     if re.search(r"(.)\1{40,}", query):
         raise HTTPException(422, "Please avoid repeated-character spam")
     # Authorization and transactional tools are the security boundary, not keyword blocking.
+    channel = getattr(session, "channel", "web")
+    feeling = mood.classify(query)
     with chat_locks[session.customer_id % len(chat_locks)]:
         with transaction() as db:
             existing = db.query(ChatTurn).filter_by(customer_id=session.customer_id, request_id=str(payload.request_id)).first()
@@ -200,6 +204,11 @@ def chat(payload: ChatInput, background: BackgroundTasks, session=Depends(custom
             customer = get_customer(db, session.customer_id, session.shop_id)
             handoff = customer.human_intervention
             history, previous_sources, conversation_context = load_conversation(db, session.customer_id, session.shop_id)
+            state = conversation_snapshot(db, session.customer_id)
+        streak = state["negative_streak"] + 1 if feeling.negative else 0
+        conversation_context.update(
+            sentiment={**feeling.as_dict(), "escalate": mood.needs_escalation(feeling, streak)},
+            channel=channel, visual_context=state["visual_context"])
         if handoff:
             response = {"answer": "", "status": "queued_for_human",
                         "sources": [], "drafts": [], "trace": [{"node": "handoff", "detail": "Routed to human support"}],
@@ -220,7 +229,12 @@ def chat(payload: ChatInput, background: BackgroundTasks, session=Depends(custom
             paused_now = get_customer(db, session.customer_id, session.shop_id).human_intervention
             if paused_now and not response.get("handoff"):
                 response.update(answer="", status="queued_for_human", route="human")
-            db.add(ChatHistory(sender="user", message_text=query + ("\n[Image attached]" if payload.image else ""), customer_id=session.customer_id, shop_id=session.shop_id))
+            user_row = ChatHistory(sender="user", message_text=query + ("\n[Image attached]" if payload.image else ""), customer_id=session.customer_id, shop_id=session.shop_id)
+            db.add(user_row)
+            db.flush()
+            record_sentiment(db, session.customer_id, session.shop_id, feeling, channel, user_row.message_id)
+            remember_turn(db, session.customer_id, session.shop_id, response, channel)
+            response.setdefault("sentiment", {**feeling.as_dict(), "escalate": conversation_context["sentiment"]["escalate"]})
             reply = None
             if response["answer"]:
                 reply = ChatHistory(sender="ai", message_text=response["answer"], customer_id=session.customer_id, shop_id=session.shop_id)
@@ -344,10 +358,75 @@ def dashboard(session=Depends(admin_session)):
             Customer.shop_id == session.shop_id).order_by(ChatTurn.id.desc()).limit(5000).all()
         ai_usage = aggregate_usage(turn.response.get("usage") for turn in turns if isinstance(turn.response, dict))
         return {"products": products, "orders": orders, "customers": customers, "cases": cases, "policies": policies,
-                "ai_usage": ai_usage,
+                "ai_usage": ai_usage, "escalation_alerts": escalation_alerts(db, session.shop_id),
+                "sentiment": sentiment_overview(db, session.shop_id),
                 "metrics": {"orders": db.query(Order).filter_by(shop_id=session.shop_id).count(),
                             "customers": db.query(Customer).filter_by(shop_id=session.shop_id).count(),
                             "open_cases": db.query(Escalation).filter_by(shop_id=session.shop_id).filter(Escalation.status.in_(["Open", "Pending"])).count()}}
+
+
+def escalation_alerts(db, shop_id, limit=50):
+    """Open escalations, newest/urgent first, with the triage context the bot captured."""
+    from backend.records import SupportCase
+    rows = (db.query(Escalation, SupportCase).join(SupportCase, SupportCase.case_id == Escalation.case_id)
+            .filter(Escalation.shop_id == shop_id, Escalation.status.in_(["Open", "Pending"]))
+            .order_by(Escalation.case_id.desc()).limit(limit).all())
+    alerts = []
+    for case, detail in rows:
+        context = (detail.context or {}).get("escalation") or {}
+        sentiment = context.get("sentiment") or {}
+        alerts.append({
+            "case_id": case.case_id, "customer_id": case.customer_id, "priority": detail.priority,
+            "category": detail.category, "trigger": context.get("trigger_label") or detail.reason,
+            "channel": context.get("channel", "web"), "sentiment": sentiment.get("label", "NEUTRAL"),
+            "sentiment_score": sentiment.get("score"), "products": context.get("product_context", []),
+            "image_context": context.get("visual_context", {}), "conversation_summary": context.get("conversation_summary", ""),
+            "last_message": context.get("last_message") or case.issue_summary,
+            "created_at": case.created_at.isoformat() if case.created_at else None,
+            "sla_due_at": detail.sla_due_at.isoformat() if detail.sla_due_at else None})
+    alerts.sort(key=lambda alert: alert["priority"] != "urgent")
+    return alerts
+
+
+def sentiment_overview(db, shop_id, days=7):
+    from datetime import timedelta
+    from sqlalchemy import func
+    from backend.records import ConversationState, MessageSentiment
+    since = datetime.utcnow() - timedelta(days=days)
+    counts = dict(db.query(MessageSentiment.label, func.count(MessageSentiment.id)).filter(
+        MessageSentiment.shop_id == shop_id, MessageSentiment.created_at >= since).group_by(MessageSentiment.label).all())
+    average = db.query(func.avg(MessageSentiment.score)).filter(
+        MessageSentiment.shop_id == shop_id, MessageSentiment.created_at >= since).scalar()
+    escalated = db.query(ConversationState).filter_by(shop_id=shop_id, status="ESCALATED").count()
+    return {"window_days": days, "counts": {label: counts.get(label, 0) for label in ("POSITIVE", "NEUTRAL", "NEGATIVE", "FRUSTRATED")},
+            "average_score": round(float(average), 3) if average is not None else None,
+            "escalated_conversations": escalated}
+
+
+@app.get("/api/admin/escalations")
+def admin_escalations(session=Depends(admin_session)):
+    with transaction() as db:
+        return escalation_alerts(db, session.shop_id)
+
+
+@app.get("/api/admin/sentiment")
+def admin_sentiment(days: int = 7, session=Depends(admin_session)):
+    with transaction() as db:
+        return sentiment_overview(db, session.shop_id, max(1, min(days, 90)))
+
+
+@app.get("/api/admin/orders/{order_id}/details")
+def admin_order_details(order_id: int, session=Depends(admin_session)):
+    """Variant / phone / delivery address captured by the Messenger order form."""
+    from backend.records import OrderDetail
+    with transaction() as db:
+        order = db.query(Order).filter_by(order_id=order_id, shop_id=session.shop_id).first()
+        if not order:
+            raise HTTPException(404, "Order not found")
+        detail = db.get(OrderDetail, order_id)
+        return {**order_dict(order), "details": None if not detail else {
+            "order_code": detail.order_code, "channel": detail.channel, "variant": detail.variant,
+            "customer_name": detail.customer_name, "phone": detail.phone, "delivery_address": detail.delivery_address}}
 
 
 @app.put("/api/admin/products/{product_id}")

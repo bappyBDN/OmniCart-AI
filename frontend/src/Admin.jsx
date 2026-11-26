@@ -162,10 +162,46 @@ function Overview({ data, health, onNavigate }) {
       <section className="panel admin-chart"><div className="admin-card-head"><div><span className="eyebrow">RETRIEVAL SYSTEM</span><h3>AI knowledge health</h3></div><Activity size={19} /></div><div className="rag-health"><div><span className={health?.dense_status === 'ready' ? 'health-orb ready' : 'health-orb'} /><div><strong>{health?.dense_status === 'ready' ? 'Hybrid RAG active' : 'Lexical RAG active'}</strong><small>{health?.dense_status === 'ready' ? 'BM25 + multilingual dense retrieval' : 'Dense index warming or unavailable'}</small></div></div><div className="rag-stats"><span><small>Products</small><strong>{health?.products ?? '—'}</strong></span><span><small>Policies</small><strong>{health?.policies ?? '—'}</strong></span><span><small>MCP database</small><strong>{health?.mcp_enabled ? 'MCP' : 'Local'}</strong></span></div><button className="secondary" onClick={() => onNavigate('knowledge')}>Open knowledge studio <ArrowRight size={14} /></button></div></section>
     </div>
     <div className="admin-grid-2">
+      <EscalationAlerts alerts={data.escalation_alerts || []} onNavigate={onNavigate} />
+      <SentimentPanel sentiment={data.sentiment} />
+    </div>
+    <div className="admin-grid-2">
       <section className="panel admin-table-card"><div className="admin-card-head"><div><span className="eyebrow">LATEST ACTIVITY</span><h3>Recent orders</h3></div><button className="text-button" onClick={() => onNavigate('orders')}>All orders</button></div><TableHead columns={['Order', 'Customer', 'Total', 'Status']} />{recent.map(order => <div className="admin-row" key={order.order_id}><span><strong>{order.reference}</strong><small>{order.product_name}</small></span><span>#{order.customer_id}</span><span><strong>{currency(order.total_price)}</strong></span><span className={`status status-${order.status.toLowerCase()}`}>{order.status}</span></div>)}{!recent.length && <p className="admin-empty">No orders yet.</p>}</section>
       <section className="panel admin-table-card"><div className="admin-card-head"><div><span className="eyebrow">ATTENTION NEEDED</span><h3>Low stock</h3></div><button className="text-button" onClick={() => onNavigate('products')}>Catalogue</button></div><TableHead columns={['Product', 'Category', 'Stock']} />{lowStock.map(product => <div className="admin-row" key={product.product_id}><span><strong>{product.name}</strong><small>{product.product_id}</small></span><span>{product.category}</span><span className={product.stock_count ? 'stock-ok' : 'stock-warning'}>{product.stock_count}</span></div>)}{!lowStock.length && <p className="admin-empty">Healthy stock levels.</p>}</section>
     </div>
   </>
+}
+
+const MOODS = [['POSITIVE', 'Positive'], ['NEUTRAL', 'Neutral'], ['NEGATIVE', 'Negative'], ['FRUSTRATED', 'Frustrated']]
+
+function EscalationAlerts({ alerts, onNavigate }) {
+  return <section className="panel admin-table-card escalation-feed">
+    <div className="admin-card-head"><div><span className="eyebrow">HUMAN HANDOVER</span><h3>Escalation alerts</h3></div><button className="text-button" onClick={() => onNavigate('support')}>Support desk</button></div>
+    {alerts.slice(0, 6).map(alert => <article className={`escalation-alert ${alert.priority === 'urgent' ? 'urgent' : ''}`} key={alert.case_id}>
+      <header>
+        <strong>Case #{alert.case_id} · {alert.trigger}</strong>
+        <span className={`mood mood-${(alert.sentiment || 'NEUTRAL').toLowerCase()}`}>{alert.sentiment}</span>
+      </header>
+      <p className="escalation-last">“{alert.last_message}”</p>
+      <small>
+        Customer #{alert.customer_id} via {alert.channel}
+        {alert.products?.length ? ` · ${alert.products.map(product => product.name).join(', ')}` : ''}
+        {alert.image_context?.description ? ` · photo: ${alert.image_context.description}` : ''}
+      </small>
+      {alert.conversation_summary && <small className="escalation-summary">{alert.conversation_summary}</small>}
+    </article>)}
+    {!alerts.length && <p className="admin-empty">No conversations waiting for a person.</p>}
+  </section>
+}
+
+function SentimentPanel({ sentiment }) {
+  const counts = sentiment?.counts || {}
+  const total = Math.max(1, Object.values(counts).reduce((sum, value) => sum + value, 0))
+  return <section className="panel admin-chart">
+    <div className="admin-card-head"><div><span className="eyebrow">CUSTOMER MOOD · {sentiment?.window_days || 7} DAYS</span><h3>Sentiment</h3></div><TrendingUp size={19} /></div>
+    <div className="status-chart">{MOODS.map(([key, label]) => <div className="status-bar" key={key}><span>{label}</span><div><i className={`mood-bar mood-${key.toLowerCase()}`} style={{ width: `${Math.max(4, (counts[key] || 0) / total * 100)}%` }} /></div><strong>{counts[key] || 0}</strong></div>)}</div>
+    <div className="rag-stats"><span><small>Average score</small><strong>{sentiment?.average_score ?? '—'}</strong></span><span><small>Escalated now</small><strong>{sentiment?.escalated_conversations ?? 0}</strong></span></div>
+  </section>
 }
 
 function Metric({ icon: Icon, label, value, note, accent }) {

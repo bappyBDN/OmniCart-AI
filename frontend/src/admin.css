@@ -2,3 +2,21 @@
 @media(max-width:1050px){.admin-shell{grid-template-columns:210px minmax(0,1fr)}.admin-page{padding:25px 22px 40px}.admin-topbar{padding:0 22px}.admin-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
 .admin-kpi:last-child{grid-column:1/-1}.admin-grid-2{grid-template-columns:1fr}.admin-page-heading{flex-wrap:wrap;align-items:flex-start}.admin-page .admin-chat-layout{grid-template-columns:210px minmax(0,1fr)}}
 @media(max-width:720px){.admin-shell{grid-template-columns:1fr}.admin-rail{position:relative;height:auto;border-right:0;border-bottom:1px solid #e2e9dc;padding:18px 14px}.admin-brand{margin-bottom:16px}.admin-rail-label{display:none}.admin-nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px}.admin-nav button{font-size:10px;padding:9px}.admin-rail-bottom{margin-top:14px;padding-top:10px}.admin-health,.admin-account{display:none}.admin-topbar{height:57px;padding:0 16px}.admin-page{padding:22px 15px 35px}.admin-page-heading h1{font-size:26px}.admin-page-heading p{font-size:10px}.admin-kpis{gap:9px}.admin-kpi{padding:14px}.admin-kpi>strong{font-size:21px}.admin-kpi>small{font-size:7px}.admin-chart,.admin-table-card,.admin-settings{padding:17px}.admin-table{padding:4px 12px}.admin-row{grid-template-columns:minmax(120px,1.6fr) .8fr .7fr;font-size:9px;gap:7px}.admin-row>span:nth-child(2){display:none}.admin-table-head{grid-template-columns:minmax(120px,1.6fr) .8fr .7fr!important}.admin-table-head>span:nth-child(2){display:none}.admin-table-card .admin-row{grid-template-columns:1.5fr .7fr .9fr}.admin-table-card .admin-table-head{grid-template-columns:1.5fr .7fr .9fr!important}.admin-toolbar{display:grid;grid-template-columns:1fr 1fr}.admin-search{grid-column:1/-1;max-width:none}.admin-toolbar select{max-width:none;width:100%}.admin-toolbar-note{display:none}.admin-toolbar>.primary,.admin-toolbar>.secondary{font-size:8px;padding:9px 7px;white-space:nowrap}.admin-page .admin-chat-layout{grid-template-columns:1fr}.admin-page .customer-list{max-height:170px}.admin-page .admin-conversation{min-height:450px}.admin-row .row-actions{display:none}.admin-application>header{padding:0 16px}.admin-application>header .brand{font-size:21px}.admin-application>header>a:last-child{font-size:8px}.admin-settings .settings-list>div{font-size:8px}.settings-list strong{font-size:8px}}
+
+/* Copilot: escalation alerts + sentiment */
+.status-bar i.mood-positive{background:#7eae77}
+.status-bar i.mood-neutral{background:#b9c6ad}
+.status-bar i.mood-negative{background:#d3b879}
+.status-bar i.mood-frustrated{background:#c98b7a}
+.escalation-feed{display:flex;flex-direction:column;gap:10px}
+.escalation-alert{border:1px solid #e6ecdf;border-left:3px solid #d3b879;border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;background:#fbfcf8}
+.escalation-alert.urgent{border-left-color:#c98b7a;background:#fdf8f5}
+.escalation-alert header{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.escalation-alert header strong{font-size:12px;color:#3f5a33}
+.escalation-alert small{font-size:10px;color:#8fa181}
+.escalation-last{margin:0;font-size:12px;color:#4c6340;overflow-wrap:anywhere}
+.escalation-summary{font-style:italic}
+.mood{font-size:9px;font-weight:700;letter-spacing:.04em;padding:2px 7px;border-radius:999px;background:#eef3e8;color:#69845a}
+.mood-negative{background:#f6efdc;color:#8a6d2c}
+.mood-frustrated{background:#f6e3dc;color:#9a4f3b}
+.mood-positive{background:#e4f0de;color:#4f7d46}

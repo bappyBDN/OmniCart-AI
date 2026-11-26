@@ -151,7 +151,7 @@ test('support desk keeps investigation notes private and resumes with a resoluti
   await admin.getByLabel('Email address', { exact: true }).fill('browser-test@example.com')
   await admin.getByLabel('Password', { exact: true }).fill('isolated-test-only')
   await admin.getByRole('button', { name: 'Sign in securely' }).click()
-  await admin.getByRole('button', { name: /Support desk/ }).click()
+  await admin.getByRole('navigation', { name: 'Admin navigation' }).getByRole('button', { name: /Support desk/ }).click()
   await admin.locator('.queue-item').first().click()
   await admin.getByLabel('Internal support note').fill('PRIVATE: checking the merchant delivery log.')
   await admin.getByRole('button', { name: 'Save internal note' }).click()

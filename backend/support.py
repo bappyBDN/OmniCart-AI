@@ -32,10 +32,20 @@ def case_dict(case, detail):
             "assigned_admin_id": detail.assigned_admin_id if detail else None,
             "sla_due_at": detail.sla_due_at.replace(tzinfo=timezone.utc).isoformat() if detail else None,
             "sla_breached": bool(detail and not detail.resolved_at and detail.sla_due_at < datetime.utcnow()),
-            "resolution_code": detail.resolution_code if detail else None}
+            "resolution_code": detail.resolution_code if detail else None,
+            # Structured triage data for the dashboard's escalation alerts.
+            "escalation": (detail.context or {}).get("escalation") if detail else None}
 
 
-def open_case(customer_id, shop_id, summary, reason="customer_request", priority="normal", category="support", graph_thread_id=None):
+def open_case(customer_id, shop_id, summary, reason="customer_request", priority="normal", category="support",
+              graph_thread_id=None, extra_context=None):
+    """Open (or reuse) the customer's case, pause the bot and alert the admins.
+
+    extra_context (see backend.escalation.build_context) carries the sentiment,
+    product/photo context, conversation summary and last message for triage.
+    """
+    from backend import escalation
+    from backend.conversation_state import ESCALATED, set_status
     with transaction() as db:
         if db.bind.dialect.name == "sqlite":
             db.execute(text("BEGIN IMMEDIATE"))
@@ -57,21 +67,35 @@ def open_case(customer_id, shop_id, summary, reason="customer_request", priority
                 context=context_snapshot(db, customer_id, shop_id, summary),
                 sla_due_at=datetime.utcnow() + timedelta(minutes=5 if priority == "urgent" else 15))
             db.add(detail)
-        if graph_thread_id:
+        if graph_thread_id or extra_context:
             data = dict(detail.context)
-            data["graph_thread_ids"] = list(dict.fromkeys(data.get("graph_thread_ids", []) + [graph_thread_id]))
+            if graph_thread_id:
+                data["graph_thread_ids"] = list(dict.fromkeys(data.get("graph_thread_ids", []) + [graph_thread_id]))
+            if extra_context:
+                # Newest escalation details win; earlier triggers stay in history.
+                data["escalation"] = extra_context
+                data["escalation_history"] = (data.get("escalation_history", []) + [
+                    {"trigger": extra_context.get("trigger"), "at": datetime.utcnow().isoformat()}])[-10:]
             detail.context = data
         if priority == "urgent":
             detail.priority = "urgent"
         customer.human_intervention = True
+        set_status(db, customer_id, shop_id, ESCALATED)
         if created:
             audit(db, shop_id, None, "handoff.created", case.case_id, reason)
         notification_key = f"escalation:{case.case_id}"
         notice = db.query(Notification).filter_by(dedupe_key=notification_key).first()
+        email_body = summary
+        if extra_context:
+            email_body = escalation.alert_text(escalation.alert_payload(
+                {"case_id": case.case_id, "priority": detail.priority}, customer_id, extra_context))
         email_status = notice.status if notice else enqueue(db, notification_key, os.getenv("ADMIN_EMAIL"),
-            f"Support case #{case.case_id}", summary)
+            f"Support case #{case.case_id}", email_body)
+        result = {**case_dict(case, detail), "human_intervention": True, "email_status": email_status}
+        alerts = escalation.enqueue_alerts(db, notification_key, escalation.alert_payload(
+            result, customer_id, extra_context or escalation.build_context(trigger=reason, query=summary)))
         db.flush()
-        return {**case_dict(case, detail), "human_intervention": True, "email_status": email_status}
+        return {**result, "alert_channels": alerts}
 
 
 def list_cases(db, shop_id):
@@ -143,6 +167,8 @@ def resume_customer(customer_id, shop_id, actor_id, note, resolution_code="resol
             audit(db, shop_id, actor_id, "case.resolved", case.case_id, note or resolution_code)
         db.flush()
         customer.human_intervention = bool(db.query(Escalation).filter_by(customer_id=customer_id, shop_id=shop_id).filter(Escalation.status.in_(["Open", "Pending"])).count())
+        from backend.conversation_state import ACTIVE, ESCALATED, set_status
+        set_status(db, customer_id, shop_id, ESCALATED if customer.human_intervention else ACTIVE)
         control = db.get(ConversationControl, customer_id) or ConversationControl(customer_id=customer_id, shop_id=shop_id)
         control.resume_note, control.unresolved_turns, control.updated_at = note, 0, datetime.utcnow()
         db.add(control)

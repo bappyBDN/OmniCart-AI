@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, JSON, LargeBinary, String, Text, UniqueConstraint
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, JSON, LargeBinary, String, Text, UniqueConstraint
 
 from models import Base
 
@@ -176,4 +176,59 @@ class MessengerEvent(Base):
     text = Column(Text, nullable=False)
     status = Column(String, nullable=False, index=True)
     error = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+# --- Copilot state (additive tables: create_all adds them to existing databases) ---
+
+class ConversationState(Base):
+    """One row per customer (web session or Messenger PSID).
+
+    status: ACTIVE (bot replies) | ESCALATED (human owns the thread; bot paused).
+    order_state: the Messenger order-form step machine (see backend.order_flow).
+    visual_context: attributes extracted from the customer's most recent photo.
+    """
+    __tablename__ = "conversation_states"
+    customer_id = Column(Integer, ForeignKey("customers.customer_id"), primary_key=True)
+    shop_id = Column(String, ForeignKey("shops.shop_id"), nullable=False, index=True)
+    channel = Column(String, nullable=False, default="web")
+    status = Column(String, nullable=False, default="ACTIVE", index=True)
+    order_state = Column(JSON, nullable=False, default=dict)
+    active_product_id = Column(String)
+    visual_context = Column(JSON, nullable=False, default=dict)
+    last_sentiment = Column(String, nullable=False, default="NEUTRAL")
+    last_sentiment_score = Column(Float, nullable=False, default=0.0)
+    negative_streak = Column(Integer, nullable=False, default=0)
+    updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class MessageSentiment(Base):
+    """Per-message classifier output. Stores scores and signals, not message text."""
+    __tablename__ = "message_sentiments"
+    id = Column(Integer, primary_key=True)
+    customer_id = Column(Integer, ForeignKey("customers.customer_id"), nullable=False, index=True)
+    shop_id = Column(String, ForeignKey("shops.shop_id"), nullable=False, index=True)
+    channel = Column(String, nullable=False, default="web")
+    label = Column(String, nullable=False, index=True)
+    score = Column(Float, nullable=False)
+    urgency = Column(String, nullable=False, default="normal")
+    signals = Column(JSON, nullable=False, default=list)
+    chat_message_id = Column(Integer, ForeignKey("chat_history.message_id"))
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+
+class OrderDetail(Base):
+    """Delivery/variant data captured by the conversational order flow.
+
+    Kept beside the legacy `orders` table so existing databases need no ALTER.
+    """
+    __tablename__ = "order_details"
+    order_id = Column(Integer, ForeignKey("orders.order_id"), primary_key=True)
+    shop_id = Column(String, ForeignKey("shops.shop_id"), nullable=False, index=True)
+    order_code = Column(String, nullable=False, unique=True)
+    channel = Column(String, nullable=False, default="messenger")
+    variant = Column(JSON, nullable=False, default=dict)
+    customer_name = Column(String, nullable=False)
+    phone = Column(String, nullable=False, index=True)
+    delivery_address = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

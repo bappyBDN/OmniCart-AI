@@ -41,8 +41,34 @@ async def verify_webhook(request: Request):
     raise HTTPException(status_code=403, detail="Forbidden")
 
 
-def text_events(payload):
-    """Tolerate test events, unknown fields, receipts and attachments."""
+def _image_url(message):
+    """First real photo attachment URL (stickers and other types are ignored)."""
+    attachments = message.get("attachments")
+    if not isinstance(attachments, list):
+        return None
+    for attachment in attachments:
+        if not isinstance(attachment, dict) or attachment.get("type") != "image":
+            continue
+        payload = attachment.get("payload")
+        if not isinstance(payload, dict) or payload.get("sticker_id"):
+            continue
+        url = payload.get("url")
+        if isinstance(url, str) and url.startswith("https://") and len(url) <= 4000:
+            return url
+    return None
+
+
+def _valid_payload(value):
+    return isinstance(value, str) and 0 < len(value) <= 1000
+
+
+def inbound_events(payload):
+    """Text, photo, quick-reply and postback events. Tolerates test events,
+    unknown fields, receipts, echoes and unsupported attachments.
+
+    Text-only messages yield exactly {page_id, sender_id, message_id, text};
+    `image_url` and `postback` keys are added only when present.
+    """
     if not isinstance(payload, dict) or payload.get("object") != "page":
         return
     entries = payload.get("entry")
@@ -62,18 +88,47 @@ def text_events(payload):
         for event in events:
             if not isinstance(event, dict):
                 continue
-            message, sender = event.get("message"), event.get("sender")
-            if not isinstance(message, dict) or not isinstance(sender, dict) or message.get("is_echo"):
+            sender, recipient = event.get("sender"), event.get("recipient")
+            if not isinstance(sender, dict):
                 continue
-            sender_id, text, mid = sender.get("id"), message.get("text"), message.get("mid")
-            recipient = event.get("recipient")
+            sender_id = sender.get("id")
             if isinstance(recipient, dict) and recipient.get("id") != page_id:
                 continue
             if (not isinstance(sender_id, str) or not sender_id.isascii() or not sender_id.isdigit()
-                    or sender_id == page_id or not isinstance(mid, str) or not mid or len(mid) > 512
-                    or not isinstance(text, str) or not text.strip() or len(text) > 4000):
+                    or sender_id == page_id):
                 continue
-            yield {"page_id": page_id, "sender_id": sender_id, "message_id": mid, "text": text.strip()}
+            postback, message = event.get("postback"), event.get("message")
+            if isinstance(postback, dict):
+                # Card buttons ("Order Now", "More Details"). Newer Graph versions
+                # include a mid; otherwise the timestamp makes the event unique.
+                data, title = postback.get("payload"), postback.get("title")
+                mid = postback.get("mid") or f"postback:{sender_id}:{event.get('timestamp')}:{data}"
+                if not _valid_payload(data) or not isinstance(mid, str) or len(mid) > 512 or event.get("timestamp") is None and not postback.get("mid"):
+                    continue
+                yield {"page_id": page_id, "sender_id": sender_id, "message_id": mid,
+                       "text": (title if isinstance(title, str) and title.strip() else data).strip()[:200], "postback": data}
+                continue
+            if not isinstance(message, dict) or message.get("is_echo"):
+                continue
+            mid, text = message.get("mid"), message.get("text")
+            if not isinstance(mid, str) or not mid or len(mid) > 512:
+                continue
+            image_url = _image_url(message)
+            if text is not None and (not isinstance(text, str) or len(text) > 4000):
+                continue
+            text = (text or "").strip()
+            if not text and not image_url:
+                continue
+            event_data = {"page_id": page_id, "sender_id": sender_id, "message_id": mid, "text": text}
+            quick = message.get("quick_reply")
+            if isinstance(quick, dict) and _valid_payload(quick.get("payload")):
+                event_data["postback"] = quick["payload"]
+            if image_url:
+                event_data["image_url"] = image_url
+            yield event_data
+
+
+text_events = inbound_events  # backwards-compatible name
 
 
 @router.post("/webhook")
@@ -99,7 +154,7 @@ async def receive_webhook(request: Request, background: BackgroundTasks):
     # Starlette sends the response BEFORE awaiting these background tasks. No SQL,
     # LLM or Send API operation runs on the request's acknowledgement path.
     from backend.messenger_service import process_message
-    for event in text_events(payload):
+    for event in inbound_events(payload):
         background.add_task(process_message, **event)
     return {"status": "ok"}
 
@@ -148,28 +203,67 @@ async def send_product_image(sender_id: str, image_url: str):
     await _send_messages(sender_id, [{"attachment": {"type": "image", "payload": {"url": url, "is_reusable": True}}}])
 
 
-async def send_product_cards(sender_id: str, products: list[dict]):
-    """Native image cards with SKU-specific website buttons (no postback required)."""
-    elements = []
-    for product in products[:5]:
-        url = public_product_url(product["product_id"])
-        image = public_image_url(product.get("image_url"))
-        if not url or not image:
-            raise MessengerConfigurationError("Product cards need a public HTTPS site origin and image URL")
-        subtitle = f"${product['effective_price']:.2f} USD · {product['stock_count']} in stock"
-        if "representative" in (product.get("alt_text") or "").lower():
-            subtitle += " · Representative image"
-        elements.append({
-            "title": str(product["name"])[:80], "subtitle": subtitle[:80], "image_url": image,
-            "default_action": {"type": "web_url", "url": url},
-            "buttons": [{"type": "web_url", "title": "View product", "url": url},
-                        {"type": "web_url", "title": "Order now", "url": public_order_url(product["product_id"]),
-                         "webview_height_ratio": "full"}],
-        })
-    if elements:
-        await _send_messages(sender_id, [{"attachment": {"type": "template", "payload": {
-            "template_type": "generic", "elements": elements,
-        }}}])
+async def send_quick_replies(sender_id: str, text: str, quick_replies: list):
+    """Text with tappable quick replies (max 13) attached to the LAST chunk."""
+    chunks = [text[offset:offset + 2000] for offset in range(0, len(text), 2000)] or [" "]
+    messages = [{"text": chunk} for chunk in chunks]
+    if quick_replies:
+        messages[-1]["quick_replies"] = quick_replies[:13]
+    await _send_messages(sender_id, messages)
+
+
+def product_card(product):
+    """Keep native chat ordering and the mobile form within Meta's three-button limit."""
+    stock = int(product.get("stock_count") or 0)
+    price = f"${float(product['effective_price']):.2f}"
+    details = [price, f"{stock} in stock" if stock > 5 else f"only {stock} left" if stock > 0 else "Sold out"]
+    if product.get("sizes"):
+        details.append("Sizes " + "/".join(product["sizes"][:5]))
+    if "representative" in (product.get("alt_text") or "").lower():
+        details.append("Representative image")
+    element = {"title": product["name"][:80], "subtitle": " · ".join(details)[:80]}
+    image = public_image_url(product.get("image_url")) if product.get("image_url") else None
+    if image:
+        element["image_url"] = image
+    buttons = [{"type": "postback", "title": "More Details", "payload": f"DETAILS:{product['product_id']}"}]
+    if stock > 0:
+        buttons.insert(0, {"type": "postback", "title": "Order Now", "payload": f"ORDER_NOW:{product['product_id']}"})
+    url = public_product_url(product["product_id"])
+    if url:
+        element["default_action"] = {"type": "web_url", "url": url}
+        if stock > 0:
+            buttons[0]["title"] = "Order in chat"
+            buttons.insert(0, {"type": "web_url", "title": "Order now",
+                               "url": public_order_url(product["product_id"]), "webview_height_ratio": "full"})
+        else:
+            buttons.append({"type": "web_url", "title": "View product", "url": url})
+    element["buttons"] = buttons
+    return element
+
+
+async def send_product_cards(sender_id: str, products: list):
+    """One horizontally scrollable carousel (max 10 cards)."""
+    elements = [product_card(product) for product in products[:10]]
+    if not elements:
+        return
+    await _send_messages(sender_id, [{"attachment": {"type": "template", "payload": {
+        "template_type": "generic", "image_aspect_ratio": "square", "elements": elements}}}])
+
+
+async def pass_thread_control(sender_id: str, target_app_id: str, metadata: str = ""):
+    """Meta Handover Protocol: give the thread to a human inbox app (e.g. Page Inbox)."""
+    headers = page_authorization_headers()
+    async with httpx.AsyncClient(http2=False, timeout=15.0) as client:
+        try:
+            response = await client.post(f"{GRAPH_API_BASE}/me/pass_thread_control", headers=headers,
+                                         json={"recipient": {"id": sender_id}, "target_app_id": target_app_id,
+                                               "metadata": metadata[:1000]})
+        except httpx.RequestError as exc:
+            log.error("Handover pass_thread_control transport failure (%s)", type(exc).__name__)
+            raise MessengerSendError("Handover transport failure") from None
+    if not response.is_success:
+        log.error("Handover pass_thread_control rejected (HTTP %s)", response.status_code)
+        raise MessengerSendError(f"Handover returned HTTP {response.status_code}")
 
 
 async def _send_messages(sender_id, messages):

@@ -236,5 +236,5 @@ def test_image_failure_does_not_claim_visual_matches(store, monkeypatch):
     def fail(**kwargs): raise RuntimeError('vision unavailable')
     monkeypatch.setattr(agent, 'chat_model', fail)
     result = run_agent(store['customer_id'], 'shop_01', 'Find this', [], image='placeholder')
-    assert 'couldn\'t analyze' in result['answer']
+    assert 'couldn\'t open that photo' in result['answer']
     assert result['sources'] == []

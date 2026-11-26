@@ -40,8 +40,10 @@ APP_SECRET>`. Missing/incorrect signatures return 403. A missing App secret retu
 503; GET verification and liveness remain available. Malformed JSON returns 400;
 bodies over 1 MiB return 413. Other valid signed event types are acknowledged with
 200, including echoes, deliveries, reads, postbacks and non-page test objects.
-Only nonempty text messages with a sender ID, Page ID, and message ID are processed.
-Postbacks are acknowledged but do not yet invoke the chat bot.
+Supported text, product photos, card postbacks and quick replies with valid sender,
+Page and event identities are processed. Photo search and conversational order
+postbacks use the copilot pipeline described in [copilot.md](copilot.md); receipts,
+echoes and unsupported event types remain safely acknowledged.
 
 ## 2. Deploy and verify the callback
 
@@ -108,7 +110,7 @@ when you explicitly pass `--subscribe`.
 - Replies use `POST https://graph.facebook.com/v21.0/me/messages`, a Bearer token,
   `messaging_type=RESPONSE`, `http2=False`, a 15-second timeout and 2,000-character
   text chunks. Cited product photos follow the cleaned text as clickable product
-  cards (or native image attachments if no public site origin is configured).
+  cards (or native image attachments when `MESSENGER_PRODUCT_DISPLAY=image`).
   Details are below. Respect
   Meta's messaging window and policies; this does not enable unsolicited messaging.
 - No automatic checkout confirmation is possible through text. Drafts remain
@@ -189,14 +191,17 @@ when you explicitly pass `--subscribe`.
 ## Clickable Messenger product cards
 
 To open the **exact SKU**, Messenger sends a Generic Template with the stored
-photo, current merchandise price/stock, and a **View product** web button. Clicking
-the image/title opens the same URL. For example, Batteries Pack links to
+photo and current merchandise price/stock. Clicking the image/title opens the
+product page. For example, Batteries Pack links to
 `https://YOUR-PUBLIC-DOMAIN/products/SKU_183`, not the entire catalog or an image URL.
 The web chat's **View product** link uses the same SKU route.
 
-Each card also has **Order now**, opening the same product at `#order-form` in a
+An in-stock card has **Order now**, opening the same product at `#order-form` in a
 full-height Messenger webview. The plain chat text includes the order-form URL as
 well, so a customer can open or copy it even without using the card button.
+**Order in chat** and **More Details** preserve the conversational order flow and
+product-details postbacks from the copilot update. This stays within Meta's limit
+of three buttons per card. Sold-out cards omit ordering actions.
 
 Configure the site's public HTTPS **origin**, without a path, query or credentials:
 
@@ -207,8 +212,10 @@ PUBLIC_SITE_URL=https://YOUR-PUBLIC-DOMAIN
 Render's `RENDER_EXTERNAL_URL` is used automatically when `PUBLIC_SITE_URL` is
 empty. Set `PUBLIC_SITE_URL` explicitly for a custom domain or a non-Render host.
 Restart after changing environment variables. No URL is built from inbound Host
-headers or model-authored links. Without a valid origin, existing image-only
-delivery continues and a sanitized warning explains the missing card configuration.
+headers or model-authored links. Without a valid origin, cards retain their native
+**Order Now** / **More Details** postbacks but cannot offer an external web form.
+`MESSENGER_PRODUCT_DISPLAY=image` selects native image attachments instead of cards;
+the plain order link is still supplied when a public origin is configured.
 
 The destination is a real, refreshable React product page. Its read-only endpoint,
 `GET /api/public/products/{SKU}`, exposes only the configured shop's product facts

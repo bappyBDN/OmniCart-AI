@@ -32,16 +32,24 @@ def deliver_notifications():
             if claimed.rowcount != 1:
                 continue
             item = db.get(Notification, notification_id)
-            email = EmailMessage()
-            email["From"] = os.getenv("EMAIL_SENDER")
-            email["To"] = item.recipient
-            email["Subject"] = item.subject
-            email.set_content(item.body)
+            recipient, body = item.recipient, item.body
+            email = None
+            if not recipient.startswith("alert:"):
+                email = EmailMessage()
+                email["From"] = os.getenv("EMAIL_SENDER")
+                email["To"] = item.recipient
+                email["Subject"] = item.subject
+                email.set_content(item.body)
         try:
-            with smtplib.SMTP(os.getenv("SMTP_HOST", "smtp.gmail.com"), int(os.getenv("SMTP_PORT", "587")), timeout=15) as smtp:
-                smtp.starttls()
-                smtp.login(os.environ["EMAIL_SENDER"], os.environ["EMAIL_PASSWORD"])
-                smtp.send_message(email)
+            if email is None:
+                # Admin escalation / order alerts (Telegram, webhook). See backend.escalation.
+                from backend.escalation import deliver_alert
+                deliver_alert(recipient, body)
+            else:
+                with smtplib.SMTP(os.getenv("SMTP_HOST", "smtp.gmail.com"), int(os.getenv("SMTP_PORT", "587")), timeout=15) as smtp:
+                    smtp.starttls()
+                    smtp.login(os.environ["EMAIL_SENDER"], os.environ["EMAIL_PASSWORD"])
+                    smtp.send_message(email)
             status = "sent"
         except Exception:
             log.warning("Notification %s delivery failed", notification_id)

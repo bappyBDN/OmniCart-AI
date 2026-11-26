@@ -41,8 +41,27 @@ def save_profile(customer_id, shop_id, values):
         return profile_dict(customer)
 
 
+ORDER_CODE_OFFSET = 1000
+
+
+def order_code(order_id):
+    """Customer-facing order ID: ORD-1001, ORD-1002, ... (legacy ORD_1 still accepted)."""
+    return f"ORD-{ORDER_CODE_OFFSET + int(order_id)}"
+
+
+def parse_order_code(text):
+    """Return the internal order_id for 'ORD-1001' or legacy 'ORD_1', else None."""
+    import re
+    match = re.search(r"\bORD-(\d{4,9})\b", text or "", re.I)
+    if match and int(match.group(1)) > ORDER_CODE_OFFSET:
+        return int(match.group(1)) - ORDER_CODE_OFFSET
+    match = re.search(r"\bORD_(\d{1,9})\b", text or "", re.I)
+    return int(match.group(1)) if match else None
+
+
 def order_dict(order, email_status=None):
-    return {"order_id": order.order_id, "reference": f"ORD_{order.order_id}", "product_id": order.product_id,
+    return {"order_id": order.order_id, "reference": f"ORD_{order.order_id}", "order_code": order_code(order.order_id),
+            "product_id": order.product_id,
             "product_name": order.product_name, "quantity": order.quantity, "unit_price": order.price,
             "total_price": order.total_price, "status": order.status,
             "created_at": order.created_at.isoformat() if order.created_at else None, "email_status": email_status}

@@ -53,6 +53,23 @@ def configured_models(vision=False, tier="large"):
         models.append(ChatOpenAI(model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"), temperature=0,
             timeout=18, max_retries=0, max_tokens=1600, http_client=sync_client, http_async_client=async_client,
             http_socket_options=()))
+    if vision:
+        # Optional multimodal fallbacks (GPT-4o family, Gemini via its OpenAI-compatible
+        # endpoint). VISION_PROVIDER=openai|gemini moves that provider to the front.
+        extra = []
+        if os.getenv("OPENAI_API_KEY"):
+            extra.append(("openai", ChatOpenAI(model=os.getenv("OPENAI_VISION_MODEL", "gpt-4o-mini"), temperature=0,
+                timeout=25, max_retries=0, max_tokens=600, http_client=sync_client,
+                http_async_client=async_client, http_socket_options=())))
+        if os.getenv("GEMINI_API_KEY"):
+            extra.append(("gemini", ChatOpenAI(base_url=os.getenv("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/"),
+                api_key=os.environ["GEMINI_API_KEY"], model=os.getenv("GEMINI_VISION_MODEL", "gemini-2.5-flash"),
+                temperature=0, timeout=25, max_retries=0, max_tokens=600, http_client=sync_client,
+                http_async_client=async_client, http_socket_options=())))
+        preferred = os.getenv("VISION_PROVIDER", "groq").strip().lower()
+        front = [model for name, model in extra if name == preferred]
+        models[:0] = front
+        models.extend(model for name, model in extra if name != preferred)
     if os.getenv("HUGGINGFACEHUB_API_TOKEN") and not vision:
         models.append(ChatOpenAI(base_url="https://router.huggingface.co/v1", api_key=os.environ["HUGGINGFACEHUB_API_TOKEN"],
             model=os.getenv("HF_CHAT_MODEL", "Qwen/Qwen2.5-72B-Instruct"), temperature=0, timeout=18, max_retries=0,

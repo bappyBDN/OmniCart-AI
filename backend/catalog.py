@@ -31,6 +31,31 @@ def browse_catalog(shop_id, limit=5):
         return [product_dict(row) for row in rows]
 
 
+def suggest_alternatives(shop_id, query, limit=3):
+    """In-stock products of the same TYPE (or category) the customer asked about.
+
+    Only used after retrieval found no direct match. Returns [] for queries that
+    name no known product type or category ("dragon eggs"), so the assistant
+    asks a clarifying question instead of pushing unrelated items.
+    """
+    from backend.retrieval import analyse_query, product_dict, tokens
+    plan = analyse_query(query)
+    wanted = set().union(*plan.groups) if plan.groups else set()
+    if not wanted and not plan.category:
+        return []
+    with transaction() as db:
+        rows = [product_dict(row) for row in db.query(Product).filter(
+            Product.shop_id == shop_id, Product.stock_count > 0).order_by(Product.product_id).all()]
+    same_type = [row for row in rows if wanted and wanted & set(tokens(row["name"]))]
+    if same_type:
+        colors = {c.casefold() for c in plan.colors}
+        # Prefer the requested colour when we have it in another variant/product.
+        same_type.sort(key=lambda row: (not colors & {c.casefold() for c in row["colors"]}, row["product_id"]))
+        return same_type[:limit]
+    category = plan.category or next((row["category"] for row in rows if wanted & set(tokens(row["name"]))), None)
+    return [row for row in rows if category and row["category"] == category][:limit]
+
+
 def catalog_summary(shop_id, category=None):
     with transaction() as db:
         query = db.query(

@@ -7,6 +7,10 @@ and `frontend/`. Existing shop data and bcrypt admin accounts are reused.
 The earlier GitHub README is preserved in [`docs/legacy-readme.md`](docs/legacy-readme.md)
 for reference; follow the instructions below for the current application.
 
+**Copilot upgrade:** human-like persona, photo search (web + Messenger), Messenger product
+cards and a conversational order form, sentiment analysis and smart escalation with
+admin alerts. See [`docs/copilot.md`](docs/copilot.md).
+
 PRD 2.3 implementation progress and remaining release gates are tracked in
 [`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md). The separate
 back-office app is **http://localhost:8000/admin**, including the support desk,

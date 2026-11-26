@@ -6,7 +6,7 @@ from backend.catalog import suggest_similar
 from backend.edgecases import edgecase_documents, import_edgecases, load_edgecases
 from backend.records import EdgeCaseQA
 from backend.retrieval import retriever
-from backend.translate import to_english
+from backend.translate import localize_answer, to_english
 from models import Product
 
 
@@ -45,6 +45,17 @@ def test_translator_normalises_banglish_and_bangla(store):
     assert "green kurti tunic" in to_english("sobuj kurti")
     assert "saree" in to_english("শাড়ি")
     assert "gown dress" in to_english("গাউন")
+
+
+def test_localize_answer_translates_english_to_bangla_for_bn_customers():
+    class Model:
+        def invoke(self, messages):
+            return {"content": "এটি একটি বাংলা উত্তর।"}
+    model = Model()
+    assert localize_answer("Hello world", "bn", model) == "এটি একটি বাংলা উত্তর।"
+    assert localize_answer("ইতিমধ্যে বাংলা", "bn", model) == "ইতিমধ্যে বাংলা"
+    assert localize_answer("Already English", "en", model) == "Already English"
+    assert localize_answer("English", "bn", None) == "English"  # no model -> unchanged
 
 
 def test_push_sell_suggests_similar_out_of_stock(store):

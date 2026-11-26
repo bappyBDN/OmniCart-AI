@@ -1267,6 +1267,11 @@ def run_agent(customer_id, shop_id, query, history, previous_sources=None, image
     if (feeling.get("label") in (mood.NEGATIVE, mood.FRUSTRATED) and answer and result.get("route") != "human"
             and result.get("model_tier", "rules") in ("rules", "vision") and not mood.already_apologetic(answer)):
         answer = mood.empathy_prefix(mood.Sentiment(label=feeling["label"]), locale.startswith("bn")) + answer
+    # Guarantee a Bangla/Banglish customer always receives a Bengali reply,
+    # even if the provider ignored the locale instruction.
+    if locale.startswith("bn") and answer:
+        from backend.translate import localize_answer
+        answer = localize_answer(answer, locale, chat_model)
     return {"answer": answer, "sources": sources, "drafts": result.get("drafts", []),
             "trace": result.get("trace", []), "degraded": result.get("degraded", False), "usage": reconcile_usage(result.get("usage", {})),
             "latency_ms": round((time.monotonic() - started) * 1000), "route": result["route"],

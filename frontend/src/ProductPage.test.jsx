@@ -27,7 +27,7 @@ describe('SKU-specific product pages', () => {
     render(<ProductPage productId="SKU_183" token="" onReview={review} />)
     await screen.findByRole('heading', { name: 'Batteries Pack' })
     expect(api.mock.calls[0][0]).toBe('/public/products/SKU_183')
-    expect(screen.getAllByText('$14.99').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('৳14.99').length).toBeGreaterThan(0)
     expect(screen.getAllByText('80 in stock').length).toBeGreaterThan(0)
     expect(screen.getByText('Representative image — may not show the exact SKU')).toBeInTheDocument()
     expect(review).not.toHaveBeenCalled()

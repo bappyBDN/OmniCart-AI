@@ -96,19 +96,11 @@ def test_currency_without_product_clarifies_instead_of_no_match(store, no_model)
     assert not result['handoff'] and not result['sources']
 
 
-def test_currency_uses_current_price_and_requires_explicit_rate(store, no_model):
+def test_currency_shows_current_price_in_taka(store, no_model):
     request = agent.run_agent(store['customer_id'], 'shop_01', 'bangladeshi tk te koto tk?', [], previous_sources=previous())
-    assert '$44.99' in request['answer'] and 'লাইভ USD→BDT রেট নেই' in request['answer']
-    assert request['pending_action']['kind'] == 'exchange_rate'
-    assert '৳' not in request['answer']
-    ambiguous = agent.run_agent(store['customer_id'], 'shop_01', '120', [], previous_sources=previous(),
-                                conversation_context={'pending_action': request['pending_action'], 'locale': 'bn-Latn'})
-    assert ambiguous['intent'] == 'currency' and not ambiguous['drafts']
-    assert '৳' not in ambiguous['answer']
-    converted = agent.run_agent(store['customer_id'], 'shop_01', '1 USD = 120 BDT', [], previous_sources=previous())
-    assert '৳5,398.80' in converted['answer']
-    assert 'not a verified live rate' in converted['answer']
-    assert not converted['handoff']
+    assert '৳44.99' in request['answer']
+    assert not request.get('pending_action') or request['pending_action'].get('kind') != 'exchange_rate'
+    assert not request['handoff']
 
 
 @pytest.mark.parametrize('query', ['120', '120 BDT', '0 USD = 120 BDT', '1 USD = -120 BDT', '1 USD = 0 BDT', '1 USD = 999999 BDT'])
@@ -240,11 +232,11 @@ def test_invalid_quantity_keeps_the_pending_product(reply, store, no_model):
     assert 'How many' in result['answer'] and not result['drafts'] and not result['handoff']
 
 
-def test_currency_rate_reply_preserves_bangla_context(store, no_model):
-    result = agent.run_agent(store['customer_id'], 'shop_01', '1 USD = 120 BDT', [], previous_sources=previous(),
+def test_taka_question_preserves_bangla_context(store, no_model):
+    result = agent.run_agent(store['customer_id'], 'shop_01', 'bangladeshi tk te koto tk?', [], previous_sources=previous(),
                              conversation_context={'locale': 'bn-Latn', 'pending_action': {'kind': 'exchange_rate', 'product_id': 'SKU_140'}})
     assert result['locale'] == 'bn-Latn'
-    assert 'আপনার দেওয়া' in result['answer'] and '৳5,398.80' in result['answer']
+    assert '৳44.99' in result['answer']
 
 
 def test_active_human_review_blocks_automated_draft_tool(store, no_model):
@@ -279,5 +271,5 @@ def test_english_model_answer_cannot_drop_requested_bangla(store, monkeypatch):
     monkeypatch.setattr(agent, 'chat_model', lambda tools=None, schema=None, **kw: Model(schema))
     result = agent.run_agent(store['customer_id'], 'shop_01', 'protein powder er details bolo', [])
     assert 'বর্তমান মূল্য' in result['answer'] and 'স্টকে' in result['answer']
-    assert '$44.99' in result['answer'] and 'Chocolate' in result['answer']
+    assert '৳44.99' in result['answer'] and 'Chocolate' in result['answer']
     assert result['focus_product_id'] == 'SKU_140' and not result['handoff']

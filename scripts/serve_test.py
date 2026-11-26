@@ -39,7 +39,7 @@ def main():
 
         def fake_agent(customer_id, shop_id, query, history, previous_sources=None, image=None, request_id=None, conversation_context=None):
             sources = retriever.search("cotton tshirt", shop_id, "product", 1)
-            return {"answer": "Premium Cotton T-Shirt is $19.99, with 15 in stock. [product:SKU_101]",
+            return {"answer": "Premium Cotton T-Shirt is ৳19.99, with 15 in stock. [product:SKU_101]",
                     "sources": sources, "trace": [{"node": "retrieve", "detail": "Retrieved live catalog"}],
                     "drafts": [], "degraded": False, "usage": {}, "latency_ms": 12, "route": "shopping",
                     "show_images": agent.wants_product_media(query)}

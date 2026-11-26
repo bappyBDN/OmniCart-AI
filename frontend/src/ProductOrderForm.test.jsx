@@ -19,7 +19,7 @@ describe('mobile product order form', () => {
     expect(review).not.toHaveBeenCalled()
     fill()
     fireEvent.click(screen.getByRole('button', { name: 'Increase quantity' }))
-    expect(screen.getByText('$29.98')).toBeInTheDocument()
+    expect(screen.getByText('৳29.98')).toBeInTheDocument()
     fireEvent.submit(screen.getByRole('button', { name: 'Review checkout' }).closest('form'))
     await waitFor(() => expect(review).toHaveBeenCalledWith(product, 2, details))
   })

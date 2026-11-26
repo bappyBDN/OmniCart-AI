@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response
 
 from backend.config import ROOT
+from backend.catalog_state import CURRENCY_SYMBOLS
 from backend.media import public_image_url
 from backend.product_links import public_product_url, public_order_url
 
@@ -215,10 +216,11 @@ async def send_quick_replies(sender_id: str, text: str, quick_replies: list):
 def product_card(product):
     """Keep native chat ordering and the mobile form within Meta's three-button limit."""
     stock = product.get("stock_count")
-    currency = product.get("currency") or "USD"
+    currency = product.get("currency") or "BDT"
     price = product.get("effective_price")
     if price is not None and currency:
-        details = [f"${float(price):.2f}" if currency == "USD" else f"{float(price):.2f} {currency}"]
+        symbol = CURRENCY_SYMBOLS.get(currency)
+        details = [f"{symbol}{float(price):,.2f}" if symbol else f"{float(price):,.2f} {currency}"]
     else:
         details = ["Price needs confirmation"]
     if stock is not None:

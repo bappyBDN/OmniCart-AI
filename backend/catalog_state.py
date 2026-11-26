@@ -4,6 +4,18 @@ from sqlalchemy import select
 from backend.records import CatalogEntry
 from models import Product
 
+CURRENCY_SYMBOLS = {"USD": "$", "BDT": "৳", "EUR": "€", "GBP": "£"}
+
+
+def money_text(value, currency="BDT"):
+    """Compact price string with the right symbol; never formats None as zero."""
+    if value is None:
+        return "price needs confirmation"
+    symbol = CURRENCY_SYMBOLS.get(currency or "BDT")
+    if symbol:
+        return f"{symbol}{value:,.2f}"
+    return f"{value:,.2f} {currency}"
+
 
 def active_product():
     """NOT EXISTS filter: active unless an explicit inactive catalog entry exists.

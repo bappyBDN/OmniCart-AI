@@ -65,7 +65,7 @@ def test_search_database_returns_exact_totals_for_confirmed_products(store):
     assert result["matched_products"] > 0
     assert result["total_stock"] is not None  # every legacy row has numeric stock
     assert result["total_stock"] == sum(p["stock_count"] for p in result["products"] if p["stock_count"] is not None) or result["total_stock"] == result["known_stock_subtotal"]
-    assert "USD" in result["currencies"]
+    assert "BDT" in result["currencies"]
     assert result["missing_price_products"] == 0
 
 

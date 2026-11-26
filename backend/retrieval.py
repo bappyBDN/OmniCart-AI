@@ -265,7 +265,7 @@ def product_dict(product) -> dict:
         "stock_count": product.stock_count, "status": "Needs confirmation" if product.stock_count is None else "Out of Stock" if product.stock_count <= 0 else "In Stock",
         "colors": product.colors or [], "sizes": product.sizes or [], "description": product.description or "",
         "image_url": product_image_url(product.product_id),
-        "currency": entry.currency if entry else "USD", "active": entry.active if entry else True,
+        "currency": entry.currency if entry else "BDT", "active": entry.active if entry else True,
         "localized": payload.get("name", {}), "review": payload.get("review", {}),
         "observed_colors": payload.get("visual_attributes", {}).get("observed_colors", []),
         "gallery": ["/api/catalog-media/" + image["path"].rsplit("/", 1)[-1] for image in payload.get("images", [])],

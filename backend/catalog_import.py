@@ -47,7 +47,7 @@ def import_catalog(db, shop_id, inputs):
         if row.product_id not in ids:
             entry = db.get(CatalogEntry, row.product_id)
             if not entry:
-                entry = CatalogEntry(product_id=row.product_id, shop_id=shop_id, currency="USD", payload={}, documents=[])
+                entry = CatalogEntry(product_id=row.product_id, shop_id=shop_id, currency="BDT", payload={}, documents=[])
                 db.add(entry)
             entry.active = False
     for source in catalog["products"]:

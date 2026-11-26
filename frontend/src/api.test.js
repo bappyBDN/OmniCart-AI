@@ -19,5 +19,5 @@ describe('API client', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 204 }))
     expect(await api('/sessions/current', { method: 'DELETE' })).toBeNull()
   })
-  it('formats monetary amounts', () => { expect(currency(19.99)).toBe('$19.99') })
+  it('formats monetary amounts', () => { expect(currency(19.99)).toBe('৳19.99') })
 })

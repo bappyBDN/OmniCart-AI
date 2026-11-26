@@ -199,7 +199,7 @@ def test_photo_is_matched_to_live_catalogue_with_human_reply(store, monkeypatch)
                               'summary': 'navy crew-neck tee'})
     result = agent.run_agent(store['customer_id'], 'shop_01', 'find this', [], image='data:image/png;base64,AAAA')
     assert result['answer'].startswith("I see you're looking for a navy blue crew-neck cotton t-shirt!")
-    assert 'Premium Cotton T-Shirt' in result['answer'] and '$19.99' in result['answer']
+    assert 'Premium Cotton T-Shirt' in result['answer'] and '৳19.99' in result['answer']
     assert 'Fabric & build: 100% pure cotton' in result['answer'] and 'Sizes: M, L, XL' in result['answer']
     assert result['sources'][0]['data']['product_id'] == 'SKU_101'
     assert result['sources'][0]['match_quality'] == 'exact'
@@ -288,7 +288,7 @@ def test_generic_template_card_payload(monkeypatch):
     first, second = template['elements']
     assert template['template_type'] == 'generic'
     assert first['image_url'] == 'https://cdn.example.com/shirt.jpg'
-    assert first['subtitle'] == '$19.99 · 15 in stock · Sizes M/L/XL'
+    assert first['subtitle'] == '৳19.99 · 15 in stock · Sizes M/L/XL'
     assert [b['payload'] for b in first['buttons']] == ['ORDER_NOW:SKU_101', 'DETAILS:SKU_101']
     assert 'image_url' not in second and [b['title'] for b in second['buttons']] == ['More Details']
     assert 'Sold out' in second['subtitle']
@@ -344,13 +344,13 @@ def test_full_messenger_order_flow_creates_order_and_decrements_stock(store, mon
     assert 'delivery address' in outbox.last[1]
     deliver('o8', 'House 12, Road 5, Dhanmondi, Dhaka')
     summary = outbox.last[1]
-    assert 'Premium Cotton T-Shirt (M, Black)' in summary and 'Qty: 2 × $19.99 = $39.98' in summary
+    assert 'Premium Cotton T-Shirt (M, Black)' in summary and 'Qty: 2 × ৳19.99 = ৳39.98' in summary
     assert 'Amina Rahman' in summary and '01712345678' in summary and 'Dhanmondi' in summary
     assert [r['payload'] for r in outbox.last[2]] == ['ORDER_CONFIRM', 'ORDER_EDIT', 'ORDER_CANCEL']
     assert stock() == before  # nothing is reserved before confirmation
     deliver('o9', '✅ Confirm Order', postback='ORDER_CONFIRM')
     receipt = outbox.last[1]
-    assert 'Your order is confirmed! Order ID: ORD-1001' in receipt and 'Total: $39.98' in receipt
+    assert 'Your order is confirmed! Order ID: ORD-1001' in receipt and 'Total: ৳39.98' in receipt
     assert stock() == before - 2
     with transaction() as db:
         order = db.query(Order).one()
@@ -384,7 +384,7 @@ def test_text_purchase_intent_uses_focused_product_and_saved_profile(store, monk
     summary = outbox.last[1]
     # Single size/colour and the stated quantity are filled in; saved details are reused.
     assert "Here's your order summary" in summary and 'Wireless Earbuds (Regular, White)' in summary
-    assert 'Qty: 1 × $59.99' in summary and '12 Garden Road' in summary
+    assert 'Qty: 1 × ৳59.99' in summary and '12 Garden Road' in summary
 
 
 def test_order_flow_cancel_and_question_passthrough(store, monkeypatch):

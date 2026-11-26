@@ -100,7 +100,7 @@ def test_generic_template_has_photo_price_stock_and_exact_web_link(monkeypatch):
     assert template['template_type'] == 'generic'
     element = template['elements'][0]
     assert element['title'] == 'Batteries Pack'
-    assert '$14.99' in element['subtitle'] and '80 in stock' in element['subtitle']
+    assert '৳14.99' in element['subtitle'] and '80 in stock' in element['subtitle']
     assert element['image_url'] == 'https://cdn.example.com/batteries.jpg'
     assert element['buttons'] == [{'type': 'web_url', 'title': 'Order now',
                                    'url': 'https://shop.example.com/products/SKU_183#order-form',

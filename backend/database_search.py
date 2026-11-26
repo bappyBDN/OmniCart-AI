@@ -49,9 +49,9 @@ def search_database(shop_id, **arguments):
         if plan.size:
             query = query.filter(cast(Product.sizes, String).ilike(f'%"{plan.size}"%'))
         if plan.currency:
-            # Legacy rows (no metadata) are implicitly USD; unconfirmed catalog rows stay null.
+            # Legacy rows (no metadata) are implicitly BDT; unconfirmed catalog rows stay null.
             query = query.filter(func.coalesce(
-                CatalogEntry.currency, case((CatalogEntry.product_id.is_(None), "USD"), else_=None)) == plan.currency)
+                CatalogEntry.currency, case((CatalogEntry.product_id.is_(None), "BDT"), else_=None)) == plan.currency)
         if plan.in_stock is not None:
             query = query.filter(Product.stock_count > 0 if plan.in_stock else Product.stock_count <= 0)
         # Price filters use live confirmed values, never image observations.

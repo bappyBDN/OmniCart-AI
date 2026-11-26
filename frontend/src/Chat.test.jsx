@@ -15,11 +15,11 @@ describe('source transparency', () => {
     render(<ProductCards sources={[{ id: 'product:SKU_101', kind: 'product', title: 'Cotton shirt', graph: { relation: 'alternative' }, data: { name: 'Cotton shirt', category: 'Apparel', effective_price: 19.99, stock_count: 3, image_url: '/api/products/SKU_101/image' } }]} />)
     expect(screen.getByAltText('Cotton shirt product image')).toBeInTheDocument()
     expect(screen.getByText('Similar in-stock alternative')).toBeInTheDocument()
-    expect(screen.getByText('$19.99 · 3 in stock')).toBeInTheDocument()
+    expect(screen.getByText('৳19.99 · 3 in stock')).toBeInTheDocument()
   })
   it('renders live product price and stock instead of raw JSON', () => {
     render(<SourceList sources={[{ id: 'product:SKU_101', kind: 'product', title: 'Cotton shirt', data: { effective_price: 19.99, stock_count: 3, description: 'Cotton.' } }]} />)
-    expect(screen.getByText('$19.99 · 3 in stock · Cotton.')).toBeInTheDocument()
+    expect(screen.getByText('৳19.99 · 3 in stock · Cotton.')).toBeInTheDocument()
   })
 })
 

@@ -90,7 +90,8 @@ def format_messenger_response(response, shop_id, query=""):
             elif explicit_photo:
                 missing.append(data["name"])
         if not text and by_id:
-            text = "\n".join(f"{by_id[pid]['name']} — ${by_id[pid]['effective_price']:.2f} USD; "
+            from backend.catalog_state import money_text
+            text = "\n".join(f"{by_id[pid]['name']} — {money_text(by_id[pid].get('effective_price'), by_id[pid].get('currency'))}; "
                              f"{by_id[pid]['stock_count']} in stock." for pid in product_ids if pid in by_id)
     if missing:
         note = (f"এখন {', '.join(missing)}-এর কোনো পণ্যের ছবি দেওয়া নেই।" if is_bangla(query) else

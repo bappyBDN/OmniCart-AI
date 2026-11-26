@@ -62,7 +62,7 @@ def test_general_discovery_lists_five_live_in_stock_products(store, no_models, m
     assert len(response['sources']) == 5
     assert all(s['data']['stock_count'] > 0 for s in response['sources'])
     assert 'Private Cotton Shirt' not in response['answer']
-    assert '$19.99' in response['answer']
+    assert '৳19.99' in response['answer']
     assert 'Premium Cotton T-Shirt' in response['answer']
     assert response['show_images'] and not response['degraded']
     assert response['usage']['calls'] == 0

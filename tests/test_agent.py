@@ -53,7 +53,7 @@ def test_conversational_quantity_followup_keeps_focus(store):
     assert {source["id"] for source in result["sources"]} == {"product:SKU_108"}
     assert result["show_images"] is False
     assert result["degraded"] is False
-    assert "$195.00" in result["answer"]
+    assert "৳195.00" in result["answer"]
 
 
 def test_quantity_without_focus_asks_for_product_instead_of_listing_catalogue(store):

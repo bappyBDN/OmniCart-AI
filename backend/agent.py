@@ -22,6 +22,7 @@ from backend import sentiment as mood
 from backend.commerce import escalate, get_customer, prepare_order, profile_dict, quote_product, save_profile
 from backend.catalog import (browse_catalog, catalog_summary, is_catalog_browse_question, is_catalog_count_question,
                              suggest_alternatives)
+from backend.catalog_state import money_text
 from backend.database_search import aggregate_question
 from backend.chat_memory import RECENT_MESSAGES, history_product_sources
 from backend.database import transaction
@@ -119,9 +120,8 @@ and the most recent unanswered question. A missing quantity, unclear pronoun or
 unsupported product benefit needs ONE polite, product-specific clarification, not
 a generic catalogue questionnaire or an unsolicited support case. Never choose
 the first product when several candidates are equally possible.
-Currency: the catalogue uses USD. Never invent a USD-to-BDT rate or relabel USD
-as taka. Use only an explicitly supplied exchange rate, label conversions as
-estimates, and do not imply checkout charges in BDT.
+Currency: the catalogue uses BDT (Bangladeshi Taka). Show prices in taka with ৳.
+Never invent prices, discounts, fees or a USD-to-BDT exchange rate.
 For health/supplement products, distinguish catalogue facts from personal medical
 advice. Do not invent benefits, safety, dosage, allergies or suitability from a
 short description. Explain the limitation naturally and refer personal health
@@ -310,19 +310,15 @@ def focused_conversation(state, product, shop_id, customer_id):
 
     intent = state.get("intent")
     price = data.get("effective_price")
-    price_text = None if price is None else f"{price:.2f}"
+    price_text = None if price is None else f"{price:,.2f}"
     if intent == "currency":
         if price is None or not data.get("currency"):
-            return reply((f"{name}-এর দাম ও মুদ্রা এখনও বিক্রেতার নিশ্চিত করা হয়নি, তাই টাকার অঙ্ক বলতে পারব না।"
-                          if bangla else f"The price and currency for {name} still need merchant confirmation, so I can't give a taka amount yet."))
-        rate = supplied_exchange_rate(state["query"])
-        if rate is None:
-            answer = (f"{name}-এর বর্তমান পণ্যমূল্য **${price_text} USD**। এখানে যাচাই করা লাইভ USD→BDT রেট নেই, তাই টাকার অঙ্ক অনুমান করব না। কোন এক্সচেঞ্জ রেট ধরে হিসাব করব? লিখতে পারেন: ‘1 USD = [আপনার রেট] BDT’।" if bangla else
-                      f"{name} currently costs **${price_text} USD**. I don't have a verified live USD→BDT rate, so I won't guess a taka amount. What exchange rate should I use? You can write it as '1 USD = [your rate] BDT'.")
-            return reply(answer, {"kind": "exchange_rate", "product_id": product_id})
-        total = (Decimal(str(price)) * rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-        answer = (f"আপনার দেওয়া **1 USD = {rate:f} BDT** রেট অনুযায়ী {name}-এর **${price_text} ≈ ৳{total:,.2f}**। এটি শুধু আনুমানিক পণ্যমূল্য, যাচাই করা লাইভ রেট নয়; ডেলিভারি/পেমেন্ট ফি অন্তর্ভুক্ত নয় এবং চেকআউটের মুদ্রা USD-ই থাকবে।" if bangla else
-                  f"At your supplied rate of **1 USD = {rate:f} BDT**, {name}'s **${price_text} is approximately ৳{total:,.2f}**. This is an illustrative merchandise conversion, not a verified live rate; delivery/payment fees are excluded and checkout remains in USD.")
+            return reply((f"{name}-এর দাম এখনও বিক্রেতার নিশ্চিত করা হয়নি, তাই দাম বলতে পারব না।"
+                          if bangla else f"The price for {name} still needs merchant confirmation, so I can't quote it yet."))
+        symbol = "৳" if data.get("currency") == "BDT" else f"{data['currency']} "
+        answer = (f"{name}-এর বর্তমান পণ্যমূল্য **{symbol}{price_text}**। ডেলিভারি/পেমেন্ট ফি এই অঙ্কে নেই।"
+                  if bangla else
+                  f"{name} currently costs **{symbol}{price_text}**. Delivery and payment fees are not included.")
         return reply(answer)
     if intent == "purchase":
         with transaction() as db:
@@ -358,8 +354,8 @@ def focused_conversation(state, product, shop_id, customer_id):
                          {"kind": "quantity", "product_id": product_id})
         if result.get("error"):
             return reply("ড্রাফটটি এখনও তৈরি হয়নি। পণ্য ও পরিমাণ আবার নিশ্চিত করবেন?" if bangla else "The draft hasn't been created. Could you confirm the product and quantity?")
-        answer = (f"**{quantity} × {name}**-এর ড্রাফট প্রস্তুত—পণ্যমূল্য **${result['total_price']:.2f} USD**। নিচের checkout review থেকে ফোন ও ঠিকানা যাচাই করে **Confirm order** চাপবেন। এটি এখনও অর্ডার নয়; কনফার্ম না করা পর্যন্ত স্টক কমবে না। ডেলিভারি/পেমেন্ট ফি এই অঙ্কে নেই।" if bangla else
-                  f"Your draft for **{quantity} × {name}** is ready: **${result['total_price']:.2f} USD** in merchandise. Review the phone and delivery address in the checkout review, then press **Confirm order**. Nothing is ordered or deducted from stock until confirmation; delivery/payment fees are not included.")
+        answer = (f"**{quantity} × {name}**-এর ড্রাফট প্রস্তুত—পণ্যমূল্য **৳{result['total_price']:,.2f}**। নিচের checkout review থেকে ফোন ও ঠিকানা যাচাই করে **Confirm order** চাপবেন। এটি এখনও অর্ডার নয়; কনফার্ম না করা পর্যন্ত স্টক কমবে না। ডেলিভারি/পেমেন্ট ফি এই অঙ্কে নেই।" if bangla else
+                  f"Your draft for **{quantity} × {name}** is ready: **৳{result['total_price']:,.2f}** in merchandise. Review the phone and delivery address in the checkout review, then press **Confirm order**. Nothing is ordered or deducted from stock until confirmation; delivery/payment fees are not included.")
         return reply(answer, drafts=[result], tool_facts=[{"tool": "process_order_tool", "result": result}])
     if intent == "purpose" and str(data.get("category", "")).casefold() == "health":
         description = data.get("description") or ("বিস্তারিত বিবরণ নেই" if bangla else "No detailed description is listed")
@@ -382,12 +378,16 @@ def focused_conversation(state, product, shop_id, customer_id):
             details.append((f"সাইজ: {sizes}।" if bangla else f"Sizes: {sizes}.") if sizes else
                            ("ক্যাটালগে সাইজ দেওয়া নেই।" if bangla else "No sizes are listed in the catalog."))
         if re.search(r"\bstock\b|\bavailable\b|\bavailability\b|স্টক", text):
-            stock = int(data.get("stock_count") or 0)
-            details.append((f"এখন স্টকে {stock}টি আছে।" if bangla else f"There are {stock} in stock right now.") if stock else
-                           ("এখন স্টকে নেই।" if bangla else "It's currently out of stock."))
+            stock = data.get("stock_count")
+            if stock is not None:
+                details.append((f"এখন স্টকে {stock}টি আছে।" if bangla else f"There are {stock} in stock right now.") if stock else
+                               ("এখন স্টকে নেই।" if bangla else "It's currently out of stock."))
+            else:
+                details.append("স্টক নিশ্চিত করা প্রয়োজন।" if bangla else "Stock needs merchant confirmation.")
         if details:
             if re.search(r"\bprice\b|\bcost\b|দাম", text):
-                details.append(f"${price:.2f} USD.")
+                details.append((f"দাম: ৳{price_text}।" if bangla else f"Price: ৳{price_text}.") if price_text else
+                               ("দাম নিশ্চিত করা প্রয়োজন।" if bangla else "Price needs merchant confirmation."))
             return reply(f"**{name}** — " + " ".join(details))
     return None
 
@@ -580,8 +580,7 @@ def retrieve_node(state, config: RunnableConfig):
             lines = ["অবশ্যই! স্টকে থাকা কিছু পণ্য দেখুন:" if bangla else "Of course! Here are a few things we have in stock:"]
             for row in rows:
                 detail = (row.get("description") or row.get("category") or "")[:110]
-                price = (f"${row['effective_price']:.2f} {row['currency']}" if row.get("effective_price") is not None and row.get("currency")
-                         else "price needs confirmation")
+                price = money_text(row.get("effective_price"), row.get("currency")) if row.get("effective_price") is not None else "price needs confirmation"
                 lines.append(f"- **{row['name']}** — {price}; {detail} [product:{row['product_id']}]")
             lines.append("কোনটি সম্পর্কে জানতে চান?" if bangla else "Which one would you like to know more about?")
             answer = "\n".join(lines)
@@ -703,7 +702,8 @@ def retrieve_node(state, config: RunnableConfig):
             lines = ["হুবহু এটা এই মুহূর্তে নেই, তবে কাছাকাছি এগুলো দেখতে পারেন:" if bangla else
                      "We don't have that exact one right now, but these are close and in stock:"]
             for row in alternatives:
-                lines.append(f"- **{row['name']}** — ${row['effective_price']:.2f}"
+                price = money_text(row.get("effective_price"), row.get("currency")) if row.get("effective_price") is not None else "price needs confirmation"
+                lines.append(f"- **{row['name']}** — {price}"
                              + (f" · {', '.join(row['colors'][:4])}" if row["colors"] else "")
                              + f" [product:{row['product_id']}]")
             lines.append("কোনটা দেখতে চান?" if bangla else "Would any of these work for you?")
@@ -742,20 +742,26 @@ def retrieve_node(state, config: RunnableConfig):
         product = next((source for source in bounded_sources if source.get("id") == f"product:{focus_id}"), None)
         if product:
             data = product.get("data", {})
-            stock = int(data.get("stock_count") or 0)
-            price = Decimal(str(data.get("effective_price") or data.get("price") or 0))
+            stock = data.get("stock_count")
+            price = data.get("effective_price")
             name = data.get("name", "this product")
-            total = price * qty
+            if stock is None or price is None:
+                answer = (f"{name}-এর দাম বা স্টক নিশ্চিত করা প্রয়োজন, তাই সঠিক মোট বলতে পারব না।" if is_bangla(state["query"])
+                          else f"Price or stock for {name} needs merchant confirmation, so I can't give an exact total.")
+                return {"sources": [product], "answer": answer, "model_tier": "rules",
+                        "focus_product_id": focus_id, "show_images": False,
+                        "trace": add_trace(state, "retrieve", f"Quantity request needs confirmed facts for {focus_id}")}
+            total = Decimal(str(price)) * qty
             if is_bangla(state["query"]):
                 if stock >= qty:
-                    answer = (f"হ্যাঁ — {name}-এর {qty}টি স্টকে আছে। প্রতিটি ${price:.2f} হিসেবে মোট ${total:.2f}। "
+                    answer = (f"হ্যাঁ — {name}-এর {qty}টি স্টকে আছে। প্রতিটি ৳{price:,.2f} হিসেবে মোট ৳{total:,.2f}। "
                               "অর্ডারটি প্রস্তুত করব?")
                 else:
                     answer = (f"আপনার দরকার {qty}টি, তবে {name}-এর এখন স্টকে আছে {stock}টি। "
                               f"চাইলে {stock}টি নিতে সাহায্য করতে পারি, অথবা রিস্টকে এলে জানাব?")
             elif stock >= qty:
                 answer = (f"Yes — {qty} {'is' if qty == 1 else 'are'} available. "
-                          f"That's ${total:.2f} at ${price:.2f} each. Want me to prepare the order?")
+                          f"That's ৳{total:,.2f} at ৳{price:,.2f} each. Want me to prepare the order?")
             else:
                 answer = (f"You're asking for {qty}, but only {stock} "
                           f"{'is' if stock == 1 else 'are'} left in stock right now. "
@@ -887,8 +893,7 @@ def extractive_answer(state):
     for source in selected:
         if source["kind"] == "product":
             p = source["data"]
-            price = (f"${p['effective_price']:.2f} {p['currency']}" if p.get("effective_price") is not None and p.get("currency")
-                     else "price needs confirmation")
+            price = money_text(p.get("effective_price"), p.get("currency")) if p.get("effective_price") is not None else "price needs confirmation"
             stock = f"{p['stock_count']} in stock" if p.get("stock_count") is not None else "stock needs confirmation"
             lines.append(f"- **{p['name']}** — {price}; {stock}. [{source['id']}]")
         else:
@@ -907,8 +912,8 @@ def localized_product_facts(state):
         name = data.get("name", source["title"])
         details = [f"**{name}** ({data['product_id']})", str(data.get("description") or "").strip()]
         if data.get("effective_price") is not None and data.get("currency"):
-            details.append(f"বর্তমান মূল্য **${data['effective_price']:.2f} {data['currency']}**; "
-                           f"স্টকে **{data.get('stock_count') if data.get('stock_count') is not None else 'নিশ্চিত নয়'}**।")
+            details.append(f"বর্তমান মূল্য **{money_text(data['effective_price'], data['currency'])}**; "
+                           f"স্টকে **{data.get('stock_count') if data.get('stock_count') is not None else 'নিশ্চিত নয়'}টি**।")
         else:
             details.append("দাম ও মুদ্রা বিক্রেতার নিশ্চিত করা প্রয়োজন; স্টক নিশ্চিত নয়।")
         if data.get("colors"):

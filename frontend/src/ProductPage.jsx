@@ -3,6 +3,7 @@ import { ArrowLeft, LoaderCircle } from 'lucide-react'
 import { api, currency } from './api'
 import './ProductPage.css'
 import ProductOrderForm from './ProductOrderForm'
+import { productPath } from './productLinks'
 
 export default function ProductPage({ productId, token, profile, onReview }) {
   const [product, setProduct] = useState(null)
@@ -26,6 +27,10 @@ export default function ProductPage({ productId, token, profile, onReview }) {
   if (error) return <section className="empty-state"><h1>Product unavailable</h1><p>{error}</p><button className="secondary" onClick={() => setAttempt(n => n + 1)}>Try again</button><a href="/">Back to storefront</a></section>
   const imageNote = product.image_kind === 'photo' ? 'Product photo' : product.image_kind === 'representative'
     ? 'Representative image — may not show the exact SKU' : 'Illustration — product photo not supplied'
+  const observed = product.observed_colors?.length ? product.observed_colors.join(', ') : ''
+  const colorLine = product.colors?.length ? product.colors.join(' · ') : (observed ? `Observed: ${observed}` : 'Not confirmed')
+  const localizedName = product.localized?.bn || product.localized?.banglish
+  const similar = product.similar || []
   return <section className="product-detail" aria-label="Product details">
     <a className="product-detail-back" href="/"><ArrowLeft size={16} />Back to storefront</a>
     <div className="product-detail-layout">
@@ -34,14 +39,24 @@ export default function ProductPage({ productId, token, profile, onReview }) {
         <figcaption>{imageFailed ? 'The saved image could not be loaded.' : imageNote}</figcaption></figure>
       <div className="product-detail-copy">
         <span className="eyebrow">{product.category} / {product.product_id}</span>
-        <h1>{product.name}</h1><p>{product.description}</p>
-        <div className="product-detail-price"><strong>{currency(product.effective_price)}</strong>{product.effective_price !== null && product.effective_price < product.price && <del>{currency(product.price)}</del>}</div>
+        <h1>{product.name}</h1>
+        {localizedName && <p className="product-detail-localized">{localizedName}</p>}
+        <p>{product.description}</p>
+        <div className="product-detail-price"><strong>{currency(product.effective_price)}</strong>{product.effective_price !== null && product.effective_price !== undefined && product.price !== null && product.effective_price < product.price && <del>{currency(product.price)}</del>}</div>
         <p>{product.stock_count !== null && product.stock_count !== undefined ? (product.stock_count > 0 ? `${product.stock_count} in stock` : 'Currently out of stock') : 'Stock needs merchant confirmation'}</p>
-        <dl><dt>Colors / variants</dt><dd>{product.colors?.join(' · ') || 'Not listed'}</dd><dt>Sizes</dt><dd>{product.sizes?.join(' / ') || 'Not listed'}</dd></dl>
+        <dl><dt>Name</dt><dd>{product.name}</dd><dt>Colors / variants</dt><dd>{colorLine}</dd><dt>Sizes</dt><dd>{product.sizes?.length ? product.sizes.join(' / ') : 'Not listed'}</dd></dl>
         <a className="primary product-detail-order-link" href="#order-form">Edit delivery details &amp; order</a>
-        <p className="small muted">Prices are merchandise-only in USD. Opening this link does not create or confirm an order.</p>
+        <p className="small muted">Prices are merchandise-only in taka (৳). Opening this link does not create or confirm an order.</p>
       </div>
     </div>
+    {similar.length > 0 && <section className="similar-products" aria-label="Similar products">
+      <h2>Similar styles you might like</h2>
+      <div className="similar-grid">{similar.map(item => <a key={item.product_id} className="similar-card" href={productPath(item.product_id)}>
+        <img src={item.image_url} alt={item.name} loading="lazy" onError={event => { event.currentTarget.style.display = 'none' }} />
+        <span className="similar-name">{item.name}</span>
+        <span className="similar-price">{currency(item.effective_price)}</span>
+      </a>)}</div>
+    </section>}
     <ProductOrderForm key={product.product_id} product={product} token={token} profile={profile} onReview={onReview} />
   </section>
 }

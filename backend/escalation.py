@@ -95,7 +95,7 @@ def alert_text(payload):
         lines.append("Last message: " + payload.get("last_message", ""))
     else:
         lines += [f"{payload.get('quantity')} × {payload.get('product_name')} {payload.get('variant_label', '')}".rstrip(),
-                  f"Total: ${payload.get('total_price', 0):.2f}",
+                  f"Total: ৳{payload.get('total_price', 0):,.2f}",
                   f"Name: {payload.get('customer_name')} · Phone: {payload.get('phone')}",
                   f"Address: {payload.get('address')}"]
     return "\n".join(lines)

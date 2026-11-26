@@ -120,7 +120,7 @@ def _address(text):
 
 
 def _money(value):
-    return f"${value:,.2f}"
+    return f"৳{value:,.2f}"
 
 
 def _variant_label(state):

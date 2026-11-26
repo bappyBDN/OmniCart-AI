@@ -306,8 +306,11 @@ def public_product(product_id: str):
         has_http_image = bool(parsed_image and parsed_image.scheme in ("http", "https") and parsed_image.netloc)
         has_photo = has_http_image or bool(raw_image and raw_image.startswith("/api/catalog-media/"))
         representative = bool(has_photo and re.search(r"representative|illustration", image.alt_text or "", re.I))
+        similar = [product_dict(row) for row in db.query(Product).filter(
+            active_product(), Product.shop_id == settings.shop_id, Product.product_id != product_id,
+            Product.category == product.category, Product.stock_count > 0).order_by(Product.product_id).limit(4)]
         return {**data, "image_kind": "representative" if representative else "photo" if has_photo else "illustration",
-                "image_alt": image.alt_text if has_photo else f"{product.name} illustration"}
+                "image_alt": image.alt_text if has_photo else f"{product.name} illustration", "similar": similar}
 
 
 @app.get("/api/policies")

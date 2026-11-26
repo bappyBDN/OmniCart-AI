@@ -20,6 +20,7 @@ from urllib.parse import urlparse
 from pydantic import BaseModel, Field, field_validator
 
 from backend.database import transaction
+from backend.catalog_state import money_text
 from backend.retrieval import COLOR_CANONICAL, TYPE_GROUPS, product_dict, retriever, tokens
 from models import Product
 
@@ -232,9 +233,9 @@ def _article(phrase):
 
 
 def _product_block(product, bangla=False):
-    price = f"${product['effective_price']:.2f}"
-    if product.get("discounted_price") is not None and product["effective_price"] < product["price"]:
-        price += f" (was ${product['price']:.2f})"
+    price = money_text(product.get("effective_price"), product.get("currency"))
+    if product.get("discounted_price") is not None and product.get("effective_price") < product.get("price"):
+        price += f" (was {money_text(product['price'], product.get('currency'))})"
     stock = product["stock_count"]
     lines = [f"• {product['name']} — {price} · " + (f"{stock}টি স্টকে আছে" if bangla else
              f"{stock} in stock" if stock > 5 else f"only {stock} left")]

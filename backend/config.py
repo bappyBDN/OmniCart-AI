@@ -56,6 +56,7 @@ def database_url_from_env(environ=None):
 class Settings:
     database_url: str = database_url_from_env()
     shop_id: str = os.getenv("SHOP_ID", "shop_01")
+    currency: str = os.getenv("SHOP_CURRENCY", "BDT")
     model: str = os.getenv("CHAT_MODEL", "openai/gpt-oss-120b")
     small_model: str = os.getenv("LLM_SMALL_MODEL", "openai/gpt-oss-20b")
     vision_model: str = os.getenv("VISION_MODEL", "qwen/qwen3.8-27b")

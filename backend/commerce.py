@@ -8,6 +8,7 @@ from sqlalchemy import update
 
 from backend.database import transaction
 from backend.catalog_state import active_product, orderable
+from backend.config import settings
 from backend.notifications import enqueue
 from backend.records import Notification, OrderDraft
 from backend.retrieval import product_dict
@@ -122,8 +123,8 @@ def prepare_order(customer_id, shop_id, product_id, quantity, *, automated=False
         data = product_dict(product)
         if not orderable(data):
             return {"error": "needs_confirmation", "message": "Price, currency and stock need merchant confirmation before checkout."}
-        if data["currency"] != "USD":
-            return {"error": "unsupported_currency", "message": "This checkout currently supports USD only; contact the merchant."}
+        if data["currency"] != settings.currency:
+            return {"error": "unsupported_currency", "message": f"This checkout currently supports {settings.currency} only; contact the merchant."}
         if product.stock_count < quantity:
             return {"error": "insufficient_stock", "available": product.stock_count}
         price = str(money(product_dict(product)["effective_price"]))
@@ -167,7 +168,7 @@ def confirm_order(customer_id, shop_id, draft_id, phone=None, address=None, name
         # PostgreSQL locks the product price and stock together until checkout
         # commits. SQLite already holds its BEGIN IMMEDIATE write reservation.
         product = db.query(Product).filter_by(product_id=draft.product_id, shop_id=shop_id).filter(active_product()).with_for_update(of=Product).first()
-        if not product or not orderable(product_dict(product)) or product_dict(product)["currency"] != "USD":
+        if not product or not orderable(product_dict(product)) or product_dict(product)["currency"] != settings.currency:
             raise HTTPException(409, "Product facts need merchant confirmation. Checkout is blocked.")
         if money(product_dict(product)["effective_price"]) != money(draft.unit_price):
             raise HTTPException(409, "Price changed. Please request a new quote.")
@@ -183,7 +184,7 @@ def confirm_order(customer_id, shop_id, draft_id, phone=None, address=None, name
         draft.order_id = order.order_id
         email_status = enqueue(db, f"order:{order.order_id}", customer.email, f"Order ORD_{order.order_id} received",
             f"Hello {customer.name},\nOrder ORD_{order.order_id}: {order.quantity} × {order.product_name}.\n"
-            f"Merchandise subtotal: ${order.total_price:.2f}. Status: Pending.\nDelivery address: {customer.address}")
+            f"Merchandise subtotal: ৳{order.total_price:,.2f}. Status: Pending.\nDelivery address: {customer.address}")
         return order_dict(order, email_status)
 
 

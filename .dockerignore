@@ -9,6 +9,14 @@
 !Data/
 !Data/products.json
 !Data/policies.json
+!Data/product_image_catalog.json
+!Data/product_image_rag.json
+!Data/policy_translations.json
+!Data/policy_faqs.json
+!product Image/
+!product Image/**
+!scripts/
+!scripts/**
 !frontend/
 !frontend/package.json
 !frontend/package-lock.json

@@ -30,6 +30,7 @@ from langchain_core.documents import Document
 from sqlalchemy import String, case, cast, func, or_
 
 from backend.config import settings
+from backend.catalog_state import active_product, orderable
 from backend.database import transaction
 from backend.language import normalize_query
 from backend.media import product_image_url
@@ -255,14 +256,23 @@ def analyse_query(query: str) -> QueryPlan:
 
 def product_dict(product) -> dict:
     discount = product.discounted_price
-    effective = discount if discount is not None and 0 <= discount < product.price else product.price
-    return {
+    effective = discount if discount is not None and product.price is not None and 0 <= discount < product.price else product.price
+    entry = product.catalog_entry
+    payload = entry.payload if entry else {}
+    data = {
         "product_id": product.product_id, "name": product.name, "category": product.category,
         "price": product.price, "discounted_price": discount, "effective_price": effective,
-        "stock_count": product.stock_count, "status": "Out of Stock" if product.stock_count <= 0 else "In Stock",
+        "stock_count": product.stock_count, "status": "Needs confirmation" if product.stock_count is None else "Out of Stock" if product.stock_count <= 0 else "In Stock",
         "colors": product.colors or [], "sizes": product.sizes or [], "description": product.description or "",
         "image_url": product_image_url(product.product_id),
+        "currency": entry.currency if entry else "USD", "active": entry.active if entry else True,
+        "localized": payload.get("name", {}), "review": payload.get("review", {}),
+        "observed_colors": payload.get("visual_attributes", {}).get("observed_colors", []),
+        "gallery": ["/api/catalog-media/" + image["path"].rsplit("/", 1)[-1] for image in payload.get("images", [])],
+        "publication_status": "draft_requires_merchant_verification" if entry else "legacy",
     }
+    data["orderable"] = orderable(data)
+    return data
 
 
 def split_policy(text: str, size: int = 650, overlap: int = 90) -> list[str]:
@@ -315,7 +325,7 @@ class HybridRetriever:
     # Corpus construction
     # ------------------------------------------------------------------
     def _product_documents(self, db, shop_id: str, plan: QueryPlan | None) -> list[Document]:
-        query = db.query(Product).filter_by(shop_id=shop_id)
+        query = db.query(Product).filter_by(shop_id=shop_id).filter(active_product())
         if plan:
             if plan.category:
                 query = query.filter(func.lower(Product.category) == plan.category.lower())
@@ -344,6 +354,7 @@ class HybridRetriever:
                 product.product_id, product.name, product.category,
                 " ".join(product.colors or []), " ".join(product.sizes or []),
                 alias_text, product.description or "",
+                " ".join(doc["text"] for doc in product.catalog_entry.documents) if product.catalog_entry else "",
             ]))
             documents.append(Document(
                 page_content=json.dumps(data, ensure_ascii=False),
@@ -359,8 +370,14 @@ class HybridRetriever:
 
     def _policy_documents(self, db, shop_id: str) -> list[Document]:
         documents = []
+        from backend.records import PolicySource
+        localized = {row.policy_id: row for row in db.query(PolicySource).filter_by(shop_id=shop_id)}
         for policy in db.query(Policy).filter_by(shop_id=shop_id).all():
-            for index, chunk in enumerate(split_policy(policy.policy_text)):
+            source = localized.get(policy.policy_id)
+            text = policy.policy_text
+            if source:
+                text += "\n" + "\n".join(source.translations.values())
+            for index, chunk in enumerate(split_policy(text)):
                 embedding_text = f"{policy.policy_type} {policy.policy_type} {chunk}"
                 documents.append(Document(
                     page_content=chunk,

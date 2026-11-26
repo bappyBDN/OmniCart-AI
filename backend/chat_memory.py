@@ -71,7 +71,8 @@ def history_product_sources(history, shop_id):
     SKU by falling back further into older dialogue. No historical facts are used.
     """
     with transaction() as db:
-        products = db.query(Product.product_id, Product.name).filter_by(shop_id=shop_id).all()
+        from backend.catalog_state import active_product
+        products = db.query(Product.product_id, Product.name).filter_by(shop_id=shop_id).filter(active_product()).all()
     for row in reversed((history or [])[-RECENT_MESSAGES:]):
         if row.sender != "ai":
             continue

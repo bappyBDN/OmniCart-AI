@@ -1,8 +1,28 @@
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, JSON, LargeBinary, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, JSON, LargeBinary, String, Text, UniqueConstraint
 
 from models import Base
+
+
+class CatalogEntry(Base):
+    """Additive provenance; historical products are not deleted."""
+    __tablename__ = "catalog_entries"
+    product_id = Column(String, ForeignKey("products.product_id"), primary_key=True)
+    shop_id = Column(String, ForeignKey("shops.shop_id"), nullable=False, index=True)
+    active = Column(Boolean, nullable=False, default=True)
+    currency = Column(String)
+    payload = Column(JSON, nullable=False, default=dict)
+    documents = Column(JSON, nullable=False, default=list)
+
+
+class PolicySource(Base):
+    __tablename__ = "policy_sources"
+    shop_id = Column(String, ForeignKey("shops.shop_id"), primary_key=True)
+    source_id = Column(String, primary_key=True)
+    policy_id = Column(Integer, ForeignKey("policies.policy_id"), nullable=False, unique=True)
+    translations = Column(JSON, nullable=False)
+    source_hash = Column(String, nullable=False)
 
 
 class AccessSession(Base):

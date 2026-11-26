@@ -98,7 +98,7 @@ def structured_node(state, config: RunnableConfig):
                         "trace": _trace(state, "graph.sql", "No product terms or filters; skipped catalogue scan")}
             rows = []
             # Exact IDs are authoritative and bypass fuzzy ranking.
-            for product_id in set(re.findall(r"SKU_\d+", state["query"], re.I)):
+            for product_id in set(re.findall(r"(?:SKU|IMG)_\d+", state["query"], re.I)):
                 try:
                     rows.append(gateway.get_product(product_id.upper()))
                 except Exception:
@@ -149,7 +149,7 @@ def expand_node(state, config: RunnableConfig):
     alternatives = []
     asks_alternatives = alternative_request(state["query"])
     needs_alternative = asks_alternatives or (
-        not state.get("focus_product_id") and any((row.get("stock_count") or 0) <= 0 for row in structured)
+        not state.get("focus_product_id") and any(row.get("stock_count") is not None and row["stock_count"] <= 0 for row in structured)
     )
     if needs_alternative:
         categories = {row.get("category") for row in structured if row.get("category")}

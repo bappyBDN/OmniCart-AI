@@ -47,9 +47,9 @@ class Product(Base):
     product_id = Column(String, primary_key=True)  # প্রাইমারি কী
     name = Column(String, nullable=False)
     category = Column(String)
-    price = Column(Float, nullable=False)
+    price = Column(Float, nullable=True)  # NULL is unconfirmed, never free.
     discounted_price = Column(Float)             # 🆕 নতুন: ডিসকাউন্ট প্রাইস
-    stock_count = Column(Integer, default=0)     # 🔄 আপডেট: stock এর বদলে stock_count
+    stock_count = Column(Integer().evaluates_none(), default=0)
     
     # 🆕 ম্যাজিক: JSON টাইপ ব্যবহার করলে সরাসরি ["M", "L"] লিস্ট সেভ করা যাবে!
     colors = Column(JSON)                        
@@ -60,6 +60,7 @@ class Product(Base):
     
     shop_id = Column(String, ForeignKey("shops.shop_id"), nullable=False)
     shop = relationship("Shop", back_populates="products")
+    catalog_entry = relationship("CatalogEntry", uselist=False, lazy="joined")
     
     # Relationship with Orders
     orders = relationship("Order", back_populates="product")
@@ -168,4 +169,3 @@ def init_db():
  
 if __name__ == "__main__":
     init_db()
- 

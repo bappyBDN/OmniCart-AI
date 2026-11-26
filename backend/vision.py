@@ -179,7 +179,8 @@ def match_products(attrs: VisualAttributes, shop_id, limit=3):
             log.warning("Hybrid retrieval unavailable for visual search; using SQL attributes only")
 
     with transaction() as db:
-        rows = [product_dict(row) for row in db.query(Product).filter(Product.shop_id == shop_id).all()]
+        from backend.catalog_state import active_product
+        rows = [product_dict(row) for row in db.query(Product).filter(active_product(), Product.shop_id == shop_id).all()]
 
     type_categories = set()
     scored = []

@@ -22,6 +22,7 @@ from backend import sentiment as mood
 from backend.commerce import escalate, get_customer, prepare_order, profile_dict, quote_product, save_profile
 from backend.catalog import (browse_catalog, catalog_summary, is_catalog_browse_question, is_catalog_count_question,
                              suggest_alternatives)
+from backend.database_search import aggregate_question
 from backend.chat_memory import RECENT_MESSAGES, history_product_sources
 from backend.database import transaction
 from backend.checkpoints import DatabaseSaver
@@ -263,10 +264,11 @@ def build_context_window(history, query):
 
 def named_products(query, shop_id):
     """Only explicit, shop-scoped product identities override a previous focus."""
+    from backend.catalog_state import active_product
     text = _name_key(query)
-    sku_ids = {sku.upper() for sku in re.findall(r"\bSKU_\d+\b", query, re.I)}
+    sku_ids = {sku.upper() for sku in re.findall(r"\b(?:SKU|IMG)_\d+\b", query, re.I)}
     with transaction() as db:
-        rows = db.query(Product.product_id, Product.name).filter_by(shop_id=shop_id).all()
+        rows = db.query(Product.product_id, Product.name).filter_by(shop_id=shop_id).filter(active_product()).all()
     if sku_ids:
         return [product_id for product_id, name in rows if product_id in sku_ids]
     matches = [(product_id, _name_key(name)) for product_id, name in rows
@@ -307,16 +309,20 @@ def focused_conversation(state, product, shop_id, customer_id):
                 "trace": add_trace(state, "conversation", "Answered focused follow-up from current product/tool facts"), **extra}
 
     intent = state.get("intent")
-    price = Decimal(str(data.get("effective_price", data.get("price", 0)))).quantize(Decimal("0.01"))
+    price = data.get("effective_price")
+    price_text = None if price is None else f"{price:.2f}"
     if intent == "currency":
+        if price is None or not data.get("currency"):
+            return reply((f"{name}-এর দাম ও মুদ্রা এখনও বিক্রেতার নিশ্চিত করা হয়নি, তাই টাকার অঙ্ক বলতে পারব না।"
+                          if bangla else f"The price and currency for {name} still need merchant confirmation, so I can't give a taka amount yet."))
         rate = supplied_exchange_rate(state["query"])
         if rate is None:
-            answer = (f"{name}-এর বর্তমান পণ্যমূল্য **${price:.2f} USD**। এখানে যাচাই করা লাইভ USD→BDT রেট নেই, তাই টাকার অঙ্ক অনুমান করব না। কোন এক্সচেঞ্জ রেট ধরে হিসাব করব? লিখতে পারেন: ‘1 USD = [আপনার রেট] BDT’।" if bangla else
-                      f"{name} currently costs **${price:.2f} USD**. I don't have a verified live USD→BDT rate, so I won't guess a taka amount. What exchange rate should I use? You can write it as '1 USD = [your rate] BDT'.")
+            answer = (f"{name}-এর বর্তমান পণ্যমূল্য **${price_text} USD**। এখানে যাচাই করা লাইভ USD→BDT রেট নেই, তাই টাকার অঙ্ক অনুমান করব না। কোন এক্সচেঞ্জ রেট ধরে হিসাব করব? লিখতে পারেন: ‘1 USD = [আপনার রেট] BDT’।" if bangla else
+                      f"{name} currently costs **${price_text} USD**. I don't have a verified live USD→BDT rate, so I won't guess a taka amount. What exchange rate should I use? You can write it as '1 USD = [your rate] BDT'.")
             return reply(answer, {"kind": "exchange_rate", "product_id": product_id})
-        total = (price * rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-        answer = (f"আপনার দেওয়া **1 USD = {rate:f} BDT** রেট অনুযায়ী {name}-এর **${price:.2f} ≈ ৳{total:,.2f}**। এটি শুধু আনুমানিক পণ্যমূল্য, যাচাই করা লাইভ রেট নয়; ডেলিভারি/পেমেন্ট ফি অন্তর্ভুক্ত নয় এবং চেকআউটের মুদ্রা USD-ই থাকবে।" if bangla else
-                  f"At your supplied rate of **1 USD = {rate:f} BDT**, {name}'s **${price:.2f} is approximately ৳{total:,.2f}**. This is an illustrative merchandise conversion, not a verified live rate; delivery/payment fees are excluded and checkout remains in USD.")
+        total = (Decimal(str(price)) * rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        answer = (f"আপনার দেওয়া **1 USD = {rate:f} BDT** রেট অনুযায়ী {name}-এর **${price_text} ≈ ৳{total:,.2f}**। এটি শুধু আনুমানিক পণ্যমূল্য, যাচাই করা লাইভ রেট নয়; ডেলিভারি/পেমেন্ট ফি অন্তর্ভুক্ত নয় এবং চেকআউটের মুদ্রা USD-ই থাকবে।" if bangla else
+                  f"At your supplied rate of **1 USD = {rate:f} BDT**, {name}'s **${price_text} is approximately ৳{total:,.2f}**. This is an illustrative merchandise conversion, not a verified live rate; delivery/payment fees are excluded and checkout remains in USD.")
         return reply(answer)
     if intent == "purchase":
         with transaction() as db:
@@ -332,6 +338,9 @@ def focused_conversation(state, product, shop_id, customer_id):
         if not quantity:
             if not data.get("stock_count"):
                 return reply(f"{name} এখন স্টকে নেই। চাইলে অন্য পণ্য খুঁজতে সাহায্য করতে পারি।" if bangla else f"{name} is currently out of stock. I can help you look for another product if you'd like.")
+            if not data.get("orderable"):
+                return reply(f"{name}-এর দাম, মুদ্রা ও স্টক বিক্রেতার নিশ্চিত করা প্রয়োজন। এখন অর্ডার ড্রাফট তৈরি করা যাবে না।" if bangla else
+                             f"Price, currency and stock for {name} still need merchant confirmation, so I can't prepare a checkout draft yet.")
             return reply(f"অবশ্যই—**{name}**-এর অর্ডার ড্রাফট তৈরি করতে সাহায্য করব। কতটি নিতে চান?" if bangla else
                          f"Of course—I can help prepare a checkout draft for **{name}**. How many would you like?",
                          {"kind": "quantity", "product_id": product_id})
@@ -402,6 +411,17 @@ def build_tools(customer_id, shop_id, raw_user_text, focus_product_id=None):
         return catalog_summary(shop_id, category)
 
     @tool
+    def database_search_tool(query: str = "", product_id: str | None = None, category: str | None = None,
+                             color: str | None = None, size: str | None = None, currency: str | None = None,
+                             max_price: float | None = None, min_price: float | None = None,
+                             in_stock: bool | None = None, quantity: int = 1, limit: int = 20) -> dict:
+        """Search the live shop database with tenant-scoped, parameterized joins and exact arithmetic. Returns matched products plus authoritative stock totals and per-currency inventory value. Unknown price/stock is reported as None, never zero."""
+        from backend.database_search import search_database
+        return search_database(shop_id, query=query, product_id=product_id, category=category, color=color,
+                               size=size, currency=currency, max_price=max_price, min_price=min_price,
+                               in_stock=in_stock, quantity=quantity, limit=limit)
+
+    @tool
     def product_search_tool(query: str) -> dict:
         """Search live catalog by name, ID, category, attributes or budget through the MCP-backed Graph RAG gateway; includes authoritative price/stock. A follow-up stays on the focused product."""
         return {"sources": graph_rag.retrieve(query, shop_id, "product", 6, focus_product_id=focus_product_id).get("sources", [])}
@@ -461,7 +481,7 @@ def build_tools(customer_id, shop_id, raw_user_text, focus_product_id=None):
         result = graph_rag.retrieve(image_description, shop_id, "product", 5)
         return {"sources": result.get("sources", []), "visual_search": True}
 
-    return [catalog_summary_tool, browse_catalog_tool, product_search_tool, policy_search_tool, check_user_status_tool, update_user_info_tool,
+    return [catalog_summary_tool, browse_catalog_tool, database_search_tool, product_search_tool, policy_search_tool, check_user_status_tool, update_user_info_tool,
             quote_product_tool, process_order_tool, order_status_tool, send_email_to_admin, vision_to_product_search_tool]
 
 
@@ -560,7 +580,9 @@ def retrieve_node(state, config: RunnableConfig):
             lines = ["অবশ্যই! স্টকে থাকা কিছু পণ্য দেখুন:" if bangla else "Of course! Here are a few things we have in stock:"]
             for row in rows:
                 detail = (row.get("description") or row.get("category") or "")[:110]
-                lines.append(f"- **{row['name']}** — ${row['effective_price']:.2f} USD; {detail} [product:{row['product_id']}]")
+                price = (f"${row['effective_price']:.2f} {row['currency']}" if row.get("effective_price") is not None and row.get("currency")
+                         else "price needs confirmation")
+                lines.append(f"- **{row['name']}** — {price}; {detail} [product:{row['product_id']}]")
             lines.append("কোনটি সম্পর্কে জানতে চান?" if bangla else "Which one would you like to know more about?")
             answer = "\n".join(lines)
         else:
@@ -583,6 +605,17 @@ def retrieve_node(state, config: RunnableConfig):
         source = {"id": "catalog:summary", "kind": "catalog", "title": "Live catalog inventory", "content": answer, "data": summary}
         return {"answer": answer, "sources": [source], "tool_facts": [{"tool": tool.name, "result": summary}], "model_tier": "rules",
                 "trace": add_trace(state, "tool", "catalog_summary_tool: counted live inventory with SQL")}
+    if not state.get("image") and aggregate_question(query):
+        # Deterministic database specialist: allowlisted joins and exact totals.
+        from backend.database_search import plan_question, search_database, summary_answer
+        plan = plan_question(query)
+        result = search_database(shop_id, **plan)
+        answer = summary_answer(result, bangla=is_bangla(query))
+        source = {"id": "database:search", "kind": "catalog", "title": "Database search totals",
+                  "content": answer, "data": result}
+        return {"answer": answer, "sources": [source], "model_tier": "rules", "show_images": False,
+                "tool_facts": [{"tool": "database_search_tool", "result": result}],
+                "trace": add_trace(state, "tool", "database_search_tool: join-based stock/price totals from SQL")}
     if not state.get("image") and state.get("route") == "orders":
         context = config["configurable"]
         tracked = track_order(context["customer_id"], shop_id, query, state.get("locale", "en"))
@@ -854,7 +887,10 @@ def extractive_answer(state):
     for source in selected:
         if source["kind"] == "product":
             p = source["data"]
-            lines.append(f"- **{p['name']}** — ${p['effective_price']:.2f}; stock: {p['stock_count']}. [{source['id']}]")
+            price = (f"${p['effective_price']:.2f} {p['currency']}" if p.get("effective_price") is not None and p.get("currency")
+                     else "price needs confirmation")
+            stock = f"{p['stock_count']} in stock" if p.get("stock_count") is not None else "stock needs confirmation"
+            lines.append(f"- **{p['name']}** — {price}; {stock}. [{source['id']}]")
         else:
             lines.append(f"- **{source['title']}**: {source['content']} [{source['id']}]")
     return "\n\n".join(lines)
@@ -869,9 +905,12 @@ def localized_product_facts(state):
     for source in sources[:3]:
         data = source["data"]
         name = data.get("name", source["title"])
-        price = Decimal(str(data.get("effective_price", data.get("price", 0))))
         details = [f"**{name}** ({data['product_id']})", str(data.get("description") or "").strip()]
-        details.append(f"বর্তমান মূল্য **${price:.2f} USD**; স্টকে **{data.get('stock_count', 0)}টি**।")
+        if data.get("effective_price") is not None and data.get("currency"):
+            details.append(f"বর্তমান মূল্য **${data['effective_price']:.2f} {data['currency']}**; "
+                           f"স্টকে **{data.get('stock_count') if data.get('stock_count') is not None else 'নিশ্চিত নয়'}**।")
+        else:
+            details.append("দাম ও মুদ্রা বিক্রেতার নিশ্চিত করা প্রয়োজন; স্টক নিশ্চিত নয়।")
         if data.get("colors"):
             label = "ভ্যারিয়েন্ট" if str(data.get("category", "")).casefold() in ("health", "grocery") else "রঙ"
             details.append(f"{label}: {', '.join(map(str, data['colors']))}।")
@@ -908,8 +947,9 @@ def _name_key(value):
 
 def product_claims_supported(answer, sources, shop_id):
     """A supported SKU is not permission to name a different catalogue product."""
+    from backend.catalog_state import active_product
     with transaction() as db:
-        catalogue = {_name_key(product.name): product.name for product in db.query(Product).filter_by(shop_id=shop_id)}
+        catalogue = {_name_key(product.name): product.name for product in db.query(Product).filter_by(shop_id=shop_id).filter(active_product())}
     answer_key = _name_key(answer)
     mentioned = {
         key for key in catalogue

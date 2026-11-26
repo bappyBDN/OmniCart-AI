@@ -6,11 +6,26 @@ An admin can attach a real image URL, which the same endpoint redirects to.
 """
 import html
 import ipaddress
+import os
 from urllib.parse import urlsplit, urlunsplit
 
 from backend.database import transaction
+from backend.catalog_state import active_product
 from backend.records import ProductImage
 from models import Product
+
+
+def _public_origin():
+    origin = (os.getenv("PUBLIC_SITE_URL", "").strip() or os.getenv("RENDER_EXTERNAL_URL", "").strip()).rstrip("/")
+    if not origin:
+        return None
+    try:
+        parsed = urlsplit(origin)
+        if parsed.path or parsed.query or parsed.fragment or parsed.scheme != "https":
+            return None
+        return origin
+    except ValueError:
+        return None
 
 
 def public_image_url(value):
@@ -22,6 +37,11 @@ def public_image_url(value):
     if not isinstance(value, str) or not value.strip():
         return None
     value = value.strip()
+    if value.startswith("/api/catalog-media/"):
+        origin = _public_origin()
+        if not origin:
+            return None
+        value = origin + value
     if any(ord(char) <= 32 or ord(char) == 127 for char in value):
         return None
     try:
@@ -49,7 +69,7 @@ def product_image_url(product_id: str) -> str:
 
 def product_image_record(product_id: str, shop_id: str):
     with transaction() as db:
-        product = db.query(Product).filter_by(product_id=product_id, shop_id=shop_id).first()
+        product = db.query(Product).filter_by(product_id=product_id, shop_id=shop_id).filter(active_product()).first()
         if not product:
             return None, None
         image = db.get(ProductImage, product_id)

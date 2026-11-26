@@ -18,6 +18,7 @@ from datetime import datetime, timedelta
 from fastapi import HTTPException
 
 from backend.commerce import confirm_order, get_customer, order_code, prepare_order, save_profile
+from backend.catalog_state import active_product, orderable
 from backend.conversation import purchase_request, stated_name
 from backend.conversation_state import get_state, set_order_state
 from backend.database import transaction
@@ -60,7 +61,7 @@ def _bn(locale):
 
 
 def _load_product(db, shop_id, product_id):
-    row = db.query(Product).filter_by(product_id=product_id, shop_id=shop_id).first()
+    row = db.query(Product).filter_by(product_id=product_id, shop_id=shop_id).filter(active_product()).first()
     return product_dict(row) if row else None
 
 
@@ -223,6 +224,9 @@ def start(customer_id, shop_id, product_id, text="", locale="en", quantity=None)
         profile = _profile(db, customer_id, shop_id)
         if not product or profile["paused"]:
             return None
+        if not orderable(product):
+            return FlowReply("দাম, মুদ্রা ও স্টক বিক্রেতার নিশ্চিত করা প্রয়োজন। এখন অর্ডার করা যাবে না।" if _bn(locale) else
+                             "Price, currency and stock need merchant confirmation. Checkout is not available yet.")
         if product["stock_count"] <= 0:
             set_order_state(db, customer_id, shop_id, {})
             return FlowReply(f"দুঃখিত, {product['name']} এখন স্টকে নেই।" if _bn(locale) else

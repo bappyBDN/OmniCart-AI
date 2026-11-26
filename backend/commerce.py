@@ -7,6 +7,7 @@ from pydantic import ValidationError
 from sqlalchemy import update
 
 from backend.database import transaction
+from backend.catalog_state import active_product, orderable
 from backend.notifications import enqueue
 from backend.records import Notification, OrderDraft
 from backend.retrieval import product_dict
@@ -71,10 +72,15 @@ def quote_product(shop_id, product_id, quantity):
     if isinstance(quantity, bool) or not isinstance(quantity, int) or not 1 <= quantity <= 1000:
         raise HTTPException(422, "Quantity must be an integer between 1 and 1000")
     with transaction() as db:
-        product = db.query(Product).filter_by(product_id=product_id, shop_id=shop_id).first()
+        product = db.query(Product).filter_by(product_id=product_id, shop_id=shop_id).filter(active_product()).first()
         if not product:
             raise HTTPException(404, "Product not found")
-        unit_price = money(product_dict(product)["effective_price"])
+        data = product_dict(product)
+        if not orderable(data):
+            return {"product_id": product_id, "quantity": quantity, "unit_price": None, "total_price": None,
+                    "available": None, "stock_count": product.stock_count, "error": "needs_confirmation",
+                    "note": "Price, currency and stock must be confirmed by the merchant."}
+        unit_price = money(data["effective_price"])
         return {"product_id": product_id, "product_name": product.name, "quantity": quantity,
                 "unit_price": float(unit_price), "total_price": float(unit_price * quantity),
                 "available": product.stock_count >= quantity, "stock_count": product.stock_count,
@@ -110,9 +116,14 @@ def prepare_order(customer_id, shop_id, product_id, quantity, *, automated=False
         missing = [key for key in profile_dict(customer)["missing"] if key == "name"]
         if missing:
             return {"error": "profile_incomplete", "missing": missing, "message": "Complete your profile before checkout."}
-        product = db.query(Product).filter_by(product_id=product_id, shop_id=shop_id).first()
+        product = db.query(Product).filter_by(product_id=product_id, shop_id=shop_id).filter(active_product()).first()
         if not product:
             raise HTTPException(404, "Product not found")
+        data = product_dict(product)
+        if not orderable(data):
+            return {"error": "needs_confirmation", "message": "Price, currency and stock need merchant confirmation before checkout."}
+        if data["currency"] != "USD":
+            return {"error": "unsupported_currency", "message": "This checkout currently supports USD only; contact the merchant."}
         if product.stock_count < quantity:
             return {"error": "insufficient_stock", "available": product.stock_count}
         price = str(money(product_dict(product)["effective_price"]))
@@ -155,8 +166,10 @@ def confirm_order(customer_id, shop_id, draft_id, phone=None, address=None, name
             raise HTTPException(409, "Enter a phone number and full delivery address before confirming")
         # PostgreSQL locks the product price and stock together until checkout
         # commits. SQLite already holds its BEGIN IMMEDIATE write reservation.
-        product = db.query(Product).filter_by(product_id=draft.product_id, shop_id=shop_id).with_for_update().first()
-        if not product or money(product_dict(product)["effective_price"]) != money(draft.unit_price):
+        product = db.query(Product).filter_by(product_id=draft.product_id, shop_id=shop_id).filter(active_product()).with_for_update(of=Product).first()
+        if not product or not orderable(product_dict(product)) or product_dict(product)["currency"] != "USD":
+            raise HTTPException(409, "Product facts need merchant confirmation. Checkout is blocked.")
+        if money(product_dict(product)["effective_price"]) != money(draft.unit_price):
             raise HTTPException(409, "Price changed. Please request a new quote.")
         result = db.execute(update(Product).where(Product.product_id == draft.product_id, Product.shop_id == shop_id,
             Product.stock_count >= draft.quantity).values(stock_count=Product.stock_count - draft.quantity))

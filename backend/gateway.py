@@ -14,6 +14,7 @@ from sqlalchemy import String, case, cast, func, or_
 
 from backend.catalog import catalog_summary
 from backend.database import transaction
+from backend.catalog_state import active_product
 from backend.retrieval import product_dict, tokens
 from models import ChatHistory, Customer, Escalation, Order, Policy, Product
 
@@ -66,7 +67,7 @@ class LocalGateway:
         limit = _limit(limit)
         query = _safe_text(query, 300)
         with transaction() as db:
-            products = db.query(Product).filter_by(shop_id=self.shop_id)
+            products = db.query(Product).filter_by(shop_id=self.shop_id).filter(active_product())
             if category:
                 products = products.filter(func.lower(Product.category) == str(category).casefold())
             if color:
@@ -108,7 +109,7 @@ class LocalGateway:
 
     def get_product(self, product_id):
         with transaction() as db:
-            product = db.query(Product).filter_by(product_id=str(product_id), shop_id=self.shop_id).first()
+            product = db.query(Product).filter_by(product_id=str(product_id), shop_id=self.shop_id).filter(active_product()).first()
             if not product:
                 raise HTTPException(404, "Product not found in this shop")
             return product_dict(product)
@@ -215,7 +216,15 @@ class LocalGateway:
             return {"orders": len(orders), "revenue": round(revenue, 2),
                     "customers": db.query(Customer).filter_by(shop_id=self.shop_id).count(),
                     "open_cases": db.query(Escalation).filter_by(shop_id=self.shop_id).filter(Escalation.status.in_(["Open", "Pending"])).count(),
-                    "products": db.query(Product).filter_by(shop_id=self.shop_id).count()}
+                    "products": db.query(Product).filter_by(shop_id=self.shop_id).filter(active_product()).count()}
+
+    def database_search(self, query="", product_id=None, category=None, color=None, size=None,
+                        currency=None, max_price=None, min_price=None, in_stock=None, quantity=1, limit=20):
+        """Join-based, tenant-scoped search with exact stock totals and per-currency inventory value."""
+        from backend.database_search import search_database
+        return search_database(self.shop_id, query=query, product_id=product_id, category=category, color=color,
+                               size=size, currency=currency, max_price=max_price, min_price=min_price,
+                               in_stock=in_stock, quantity=quantity, limit=limit)
 
 
 # JSON-Schema contracts exposed to MCP clients. Descriptions are written for an
@@ -253,6 +262,13 @@ TOOL_SCHEMAS = [
      "inputSchema": {"type": "object", "properties": {"status": {"type": "string"}, "limit": {"type": "integer", "minimum": 1, "maximum": 50}}, "additionalProperties": False}},
     {"name": "metrics_summary", "description": "Read aggregate commerce and support metrics for this shop.",
      "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
+    {"name": "database_search", "description": "Search the live shop database with tenant-scoped, parameterized joins and exact arithmetic. Returns matched products plus total stock and per-currency inventory value. Unknown price/stock is reported as null, never zero.",
+     "inputSchema": {"type": "object", "properties": {
+         "query": {"type": "string"}, "product_id": {"type": "string"}, "category": {"type": "string"},
+         "color": {"type": "string"}, "size": {"type": "string"}, "currency": {"type": "string"},
+         "max_price": {"type": "number"}, "min_price": {"type": "number"}, "in_stock": {"type": "boolean"},
+         "quantity": {"type": "integer", "minimum": 1, "maximum": 1000},
+         "limit": {"type": "integer", "minimum": 1, "maximum": 50}}, "additionalProperties": False}},
 ]
 
 # Explicit mapping is intentionally boring: no dynamic SQL, no arbitrary tool names.
@@ -271,6 +287,7 @@ DISPATCH = {
     "order_get": "get_order",
     "support_cases": "support_cases",
     "metrics_summary": "metrics_summary",
+    "database_search": "database_search",
 }
 ALLOWED_ARGS = {
     "catalog_summary": {"category"},
@@ -287,6 +304,7 @@ ALLOWED_ARGS = {
     "order_get": {"order_id", "reference"},
     "support_cases": {"status", "limit"},
     "metrics_summary": set(),
+    "database_search": {"query", "product_id", "category", "color", "size", "currency", "max_price", "min_price", "in_stock", "quantity", "limit"},
 }
 
 

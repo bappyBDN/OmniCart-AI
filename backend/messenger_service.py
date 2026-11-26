@@ -33,6 +33,7 @@ from backend.config import settings
 from backend.conversation import product_choices, purchase_request
 from backend.conversation_state import record_sentiment, remember_turn
 from backend.database import transaction
+from backend.catalog_state import active_product
 from backend.messenger import (pass_thread_control, send_product_cards, send_product_image, send_quick_replies,
                                send_text_reply)
 from backend.messenger_format import format_messenger_response
@@ -109,7 +110,7 @@ def current_focus(customer_id, shop_id, text):
 
 def _product_source(shop_id, product_id):
     with transaction() as db:
-        row = db.query(Product).filter_by(product_id=product_id, shop_id=shop_id).first()
+        row = db.query(Product).filter_by(product_id=product_id, shop_id=shop_id).filter(active_product()).first()
         if not row:
             return None
         data = product_dict(row)

@@ -214,9 +214,17 @@ async def send_quick_replies(sender_id: str, text: str, quick_replies: list):
 
 def product_card(product):
     """Keep native chat ordering and the mobile form within Meta's three-button limit."""
-    stock = int(product.get("stock_count") or 0)
-    price = f"${float(product['effective_price']):.2f}"
-    details = [price, f"{stock} in stock" if stock > 5 else f"only {stock} left" if stock > 0 else "Sold out"]
+    stock = product.get("stock_count")
+    currency = product.get("currency") or "USD"
+    price = product.get("effective_price")
+    if price is not None and currency:
+        details = [f"${float(price):.2f}" if currency == "USD" else f"{float(price):.2f} {currency}"]
+    else:
+        details = ["Price needs confirmation"]
+    if stock is not None:
+        details.append(f"{stock} in stock" if stock > 5 else f"only {stock} left" if stock > 0 else "Sold out")
+    else:
+        details.append("Stock needs confirmation")
     if product.get("sizes"):
         details.append("Sizes " + "/".join(product["sizes"][:5]))
     if "representative" in (product.get("alt_text") or "").lower():
@@ -225,13 +233,17 @@ def product_card(product):
     image = public_image_url(product.get("image_url")) if product.get("image_url") else None
     if image:
         element["image_url"] = image
+    if "orderable" in product:
+        orderable = product["orderable"] is True
+    else:
+        orderable = price is not None and (stock or 0) > 0 and bool(currency)
     buttons = [{"type": "postback", "title": "More Details", "payload": f"DETAILS:{product['product_id']}"}]
-    if stock > 0:
+    if orderable and stock > 0:
         buttons.insert(0, {"type": "postback", "title": "Order Now", "payload": f"ORDER_NOW:{product['product_id']}"})
     url = public_product_url(product["product_id"])
     if url:
         element["default_action"] = {"type": "web_url", "url": url}
-        if stock > 0:
+        if orderable and stock > 0:
             buttons[0]["title"] = "Order in chat"
             buttons.insert(0, {"type": "web_url", "title": "Order now",
                                "url": public_order_url(product["product_id"]), "webview_height_ratio": "full"})

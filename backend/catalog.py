@@ -4,6 +4,7 @@ import re
 from sqlalchemy import case, func
 
 from backend.database import transaction
+from backend.catalog_state import active_product
 from backend.language import normalize_query
 from models import Product
 
@@ -26,7 +27,7 @@ def browse_catalog(shop_id, limit=5):
     """Stable examples from live inventory, not an invented popularity ranking."""
     from backend.retrieval import product_dict
     with transaction() as db:
-        rows = db.query(Product).filter(Product.shop_id == shop_id, Product.stock_count > 0).order_by(
+        rows = db.query(Product).filter(active_product(), Product.shop_id == shop_id, Product.stock_count > 0).order_by(
             Product.product_id).limit(max(1, min(int(limit), 5))).all()
         return [product_dict(row) for row in rows]
 
@@ -45,7 +46,7 @@ def suggest_alternatives(shop_id, query, limit=3):
         return []
     with transaction() as db:
         rows = [product_dict(row) for row in db.query(Product).filter(
-            Product.shop_id == shop_id, Product.stock_count > 0).order_by(Product.product_id).all()]
+            active_product(), Product.shop_id == shop_id, Product.stock_count > 0).order_by(Product.product_id).all()]
     same_type = [row for row in rows if wanted and wanted & set(tokens(row["name"]))]
     if same_type:
         colors = {c.casefold() for c in plan.colors}
@@ -62,7 +63,7 @@ def catalog_summary(shop_id, category=None):
             func.count(Product.product_id),
             func.coalesce(func.sum(case((Product.stock_count > 0, 1), else_=0)), 0),
             func.coalesce(func.sum(case((Product.stock_count > 0, Product.stock_count), else_=0)), 0),
-        ).filter(Product.shop_id == shop_id)
+        ).filter(Product.shop_id == shop_id, active_product())
         if category:
             query = query.filter(func.lower(Product.category) == category.strip().lower())
         total, available, units = query.one()

@@ -17,4 +17,4 @@ export async function api(path, { token, method = 'GET', body, signal } = {}) {
   return data
 }
 
-export const currency = value => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value || 0)
+export const currency = value => (value === null || value === undefined) ? 'Price needs confirmation' : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)

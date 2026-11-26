@@ -1,0 +1,2215 @@
+{
+  "schema_version": "1.0.0",
+  "catalog_id": "product-image-catalog",
+  "source_file": "Data/product_image_catalog.json",
+  "artifact_type": "rag_document_export_not_vector_index",
+  "document_count": 68,
+  "product_count": 17,
+  "languages": [
+    "en",
+    "bn",
+    "banglish"
+  ],
+  "retrieval_guidance": {
+    "status": "Prepared documents only; indexing, application integration and retrieval-quality evaluation are still required. No perfect-retrieval guarantee.",
+    "embedding": "Use a multilingual embedding model supporting Bengali and English. Index page_content; preserve id and metadata. Use the same model and its required query/document prefixes at indexing and query time.",
+    "hybrid_search": "Combine dense semantic search with lexical search over names, aliases, colors and product IDs. Tune ranking on actual shop queries rather than assuming a fixed score threshold works.",
+    "exact_product_lookup": "Resolve exact IMG_ IDs, source image filenames and source_product_number against the catalog first. Fetch the requested product directly instead of relying on embeddings.",
+    "follow_up_questions": "For questions such as dam koto, size ache or custom kora jabe, keep the active product_id and filter all chunks to that product. Without context, ask which product the customer means.",
+    "intent_sections": {
+      "discovery": [
+        "identity",
+        "appearance_and_size"
+      ],
+      "price_stock_bundle_customization": [
+        "purchase_and_custom_design"
+      ],
+      "size_color_material": [
+        "appearance_and_size"
+      ],
+      "usage_care": [
+        "use_and_care"
+      ]
+    },
+    "discovery": "Retrieve identity and appearance chunks, then group by product_id before selecting products. Rerank candidates if available. Join catalog records to return images and all localized fields.",
+    "unknown_identity": "Exclude category=unidentified from general category recommendations. Allow it for explicit product ID, image, source number or matching visual-attribute queries; disclose uncertainty.",
+    "image_search": "This text export supports image captions, not image-vector similarity. Image-to-product matching requires a vision model or multimodal embeddings plus evaluation.",
+    "structured_filters": "Use confirmed catalog values for budget, currency, size and availability filters. Never compare null prices as zero or treat observed image colors as stocked variants.",
+    "live_facts": "After retrieval, hydrate price, stock, sizes, available colors and custom-design terms from the current merchant-confirmed source. Do not trust stale vector text for checkout.",
+    "tenant_isolation": "Set a real shop_id before indexing in a multi-shop system. Filter by that shop_id in dense search, lexical search, catalog joins and live-fact lookups. Do not use an arbitrary default shop.",
+    "citations": "Return product_id and source_json_pointer with answers. For product cards, use the catalog's primary image and localized name. Local image paths must be hosted before web or Messenger display.",
+    "unknown_answer": {
+      "en": "This information is not confirmed yet. Please check with the seller.",
+      "bn": "এই তথ্য এখনো নিশ্চিত নয়। অনুগ্রহ করে বিক্রেতার সঙ্গে নিশ্চিত করুন।",
+      "banglish": "Ei tottho ekhono nishchit noy. Onugroho kore bikretar shathe nishchit korun."
+    },
+    "custom_design_request_fields": [
+      "product_id",
+      "reference_image_or_design_description",
+      "requested_color",
+      "requested_size_and_measurements",
+      "quantity",
+      "needed_by_date"
+    ],
+    "custom_design_request_rule": "Collect a request only; obtain seller approval of feasibility, price, delivery date and final proof before promising a custom design.",
+    "write_strategy": "Upsert documents by stable id. Remove stale document IDs for deleted products or retired sections, scoped to the same shop and catalog. Rebuild this export after catalog edits."
+  },
+  "query_expansion_hints": {
+    "rule": "These are optional intent/color hints, not an implemented tokenizer. Match whole phrases or tokens and preserve the original query. Banglish spelling varies; test with real customer queries.",
+    "intents": {
+      "price": [
+        "price",
+        "cost",
+        "dam",
+        "daam",
+        "koto taka",
+        "দাম",
+        "কত টাকা"
+      ],
+      "size": [
+        "size",
+        "saiz",
+        "map",
+        "maap",
+        "সাইজ",
+        "মাপ"
+      ],
+      "color": [
+        "color",
+        "colour",
+        "rong",
+        "রং",
+        "কালার"
+      ],
+      "stock": [
+        "available",
+        "availability",
+        "stock ache",
+        "pawa jabe",
+        "পাওয়া যাবে",
+        "স্টক আছে"
+      ],
+      "usage": [
+        "how to use",
+        "how to wear",
+        "kibhabe porbo",
+        "kivabe use korbo",
+        "কীভাবে পরব",
+        "ব্যবহার"
+      ],
+      "care": [
+        "wash",
+        "care",
+        "dhobo",
+        "jotno",
+        "ধোয়া",
+        "যত্ন"
+      ],
+      "custom_design": [
+        "custom design",
+        "custom desing",
+        "customize",
+        "custom kora jabe",
+        "nijer design",
+        "কাস্টম ডিজাইন",
+        "নিজের ডিজাইন"
+      ]
+    },
+    "colors": {
+      "green": [
+        "green",
+        "shobuj",
+        "sobuj",
+        "সবুজ"
+      ],
+      "purple": [
+        "purple",
+        "violet",
+        "beguni",
+        "বেগুনি"
+      ],
+      "white": [
+        "white",
+        "shada",
+        "sada",
+        "সাদা"
+      ],
+      "red": [
+        "red",
+        "lal",
+        "laal",
+        "লাল"
+      ],
+      "blue": [
+        "blue",
+        "nil",
+        "neel",
+        "নীল"
+      ],
+      "brown": [
+        "brown",
+        "badami",
+        "বাদামি"
+      ],
+      "black": [
+        "black",
+        "kalo",
+        "কালো"
+      ],
+      "orange": [
+        "orange",
+        "komola",
+        "কমলা"
+      ],
+      "yellow": [
+        "yellow",
+        "holud",
+        "হলুদ"
+      ]
+    }
+  },
+  "evaluation_queries": [
+    {
+      "query": "green folk motif short sleeve tunic",
+      "expected_product_ids": [
+        "IMG_001"
+      ],
+      "expected_behavior": "discovery"
+    },
+    {
+      "query": "সবুজ লোকজ নকশার ছোট হাতার কুর্তি",
+      "expected_product_ids": [
+        "IMG_001"
+      ],
+      "expected_behavior": "discovery"
+    },
+    {
+      "query": "sobuj lokoj noksha top",
+      "expected_product_ids": [
+        "IMG_001"
+      ],
+      "expected_behavior": "discovery"
+    },
+    {
+      "query": "purple sleeveless white feather dress",
+      "expected_product_ids": [
+        "IMG_002"
+      ],
+      "expected_behavior": "discovery"
+    },
+    {
+      "query": "সাদা ফুলের ওয়াইড লেগ প্যান্ট",
+      "expected_product_ids": [
+        "IMG_003"
+      ],
+      "expected_behavior": "discovery"
+    },
+    {
+      "query": "shada fuler pant",
+      "expected_product_ids": [
+        "IMG_003"
+      ],
+      "expected_behavior": "discovery"
+    },
+    {
+      "query": "brown kurti white diamond motif",
+      "expected_product_ids": [
+        "IMG_004"
+      ],
+      "expected_behavior": "discovery_with_design_warning"
+    },
+    {
+      "query": "নীল মোটিফের লাল কুর্তি",
+      "expected_product_ids": [
+        "IMG_005"
+      ],
+      "expected_behavior": "discovery"
+    },
+    {
+      "query": "lal palazzo pant",
+      "expected_product_ids": [
+        "IMG_006"
+      ],
+      "expected_behavior": "discovery"
+    },
+    {
+      "query": "ম্যাজেন্টা শাড়ি",
+      "expected_product_ids": [
+        "IMG_007"
+      ],
+      "expected_behavior": "discovery"
+    },
+    {
+      "query": "nil collar shirt",
+      "expected_product_ids": [
+        "IMG_008"
+      ],
+      "expected_behavior": "discovery"
+    },
+    {
+      "query": "cream maroon yoke kurti",
+      "expected_product_ids": [
+        "IMG_009"
+      ],
+      "expected_behavior": "discovery"
+    },
+    {
+      "query": "ডোরাকাটা ফিতা গলার টপ",
+      "expected_product_ids": [
+        "IMG_010"
+      ],
+      "expected_behavior": "discovery"
+    },
+    {
+      "query": "teal colorful scenic panel tunic",
+      "expected_product_ids": [
+        "IMG_011"
+      ],
+      "expected_behavior": "discovery"
+    },
+    {
+      "query": "হালকা অ্যাকোয়া ঝুলন্ত নকশার গলা",
+      "expected_product_ids": [
+        "IMG_012"
+      ],
+      "expected_behavior": "discovery_with_identity_warning"
+    },
+    {
+      "query": "komola ganesh kurti",
+      "expected_product_ids": [
+        "IMG_013"
+      ],
+      "expected_behavior": "discovery"
+    },
+    {
+      "query": "কালো গোলাপি সবুজ প্যানেলের ট্যাসেল টপ",
+      "expected_product_ids": [
+        "IMG_014"
+      ],
+      "expected_behavior": "discovery"
+    },
+    {
+      "query": "shobuj open front jacket",
+      "expected_product_ids": [
+        "IMG_015"
+      ],
+      "expected_behavior": "discovery"
+    },
+    {
+      "query": "beguni shonkho kurti",
+      "expected_product_ids": [
+        "IMG_017"
+      ],
+      "expected_behavior": "discovery"
+    },
+    {
+      "query": "product18.jpg",
+      "expected_product_ids": [
+        "IMG_018"
+      ],
+      "expected_behavior": "exact_image_lookup_with_identity_warning"
+    },
+    {
+      "query": "ফ্যাকাশে হলুদ বাদামি লুপ নকশার পণ্য",
+      "expected_product_ids": [
+        "IMG_018"
+      ],
+      "expected_behavior": "visual_attribute_lookup_with_identity_warning"
+    },
+    {
+      "query": "IMG_005 dam koto",
+      "expected_product_ids": [
+        "IMG_005"
+      ],
+      "expected_behavior": "price_unknown_do_not_quote"
+    },
+    {
+      "query": "IMG_003 এর সাইজ ও কোমরের মাপ কত",
+      "expected_product_ids": [
+        "IMG_003"
+      ],
+      "expected_behavior": "size_unknown_ask_seller"
+    },
+    {
+      "query": "IMG_014 custom desing kora jabe",
+      "expected_product_ids": [
+        "IMG_014"
+      ],
+      "expected_behavior": "customization_unconfirmed_collect_request_only"
+    },
+    {
+      "query": "IMG_007 blouse piece included?",
+      "expected_product_ids": [
+        "IMG_007"
+      ],
+      "expected_behavior": "bundle_unknown_do_not_promise"
+    },
+    {
+      "query": "IMG_008 stock ache?",
+      "expected_product_ids": [
+        "IMG_008"
+      ],
+      "expected_behavior": "availability_unknown_ask_seller"
+    },
+    {
+      "query": "IMG_017 কীভাবে যত্ন নেব",
+      "expected_product_ids": [
+        "IMG_017"
+      ],
+      "expected_behavior": "usage_care"
+    },
+    {
+      "query": "product16",
+      "expected_product_ids": [],
+      "expected_behavior": "missing_product_do_not_invent"
+    },
+    {
+      "query": "smart watch",
+      "expected_product_ids": [],
+      "expected_behavior": "no_matching_product_abstain"
+    },
+    {
+      "query": "500 takar moddhe in stock kurti",
+      "expected_product_ids": [],
+      "expected_behavior": "cannot_verify_budget_or_stock_from_current_catalog"
+    }
+  ],
+  "documents": [
+    {
+      "id": "IMG_001:identity:v1",
+      "page_content": "Product ID: IMG_001\nEnglish: Green Folk-Motif Short-Sleeve Tunic\nবাংলা: সবুজ লোকজ মোটিফের ছোট হাতার টিউনিক\nBanglish: Shobuj Lokoj Motif Chhoto Hatar Tunic\nSection: identity\nCategory:\nEnglish: Tunic / kurti\nবাংলা: টিউনিক / কুর্তি\nBanglish: Tunic / kurti\nDescription:\nEnglish: Green tunic-style top with a round neckline, short sleeves and a rectangular chest panel of yellow, reddish and green folk-inspired motifs. A hanging view and a folded detail view are provided.\nবাংলা: গোল গলা ও ছোট হাতার সবুজ টিউনিক ধরনের টপ। বুকের আয়তাকার প্যানেলে হলুদ, লালচে ও সবুজ লোকজ মোটিফ দেখা যায়। ঝোলানো ও ভাঁজ করা দুটি ছবি আছে।\nBanglish: Gol gola o chhoto hatar shobuj tunic dhoroner top. Buker ayotakar panel-e holud, lalche o shobuj lokoj motif dekha jay. Jholano o bhaj kora duti chhobi ache.\nAliases (en): green kurti, green tunic, folk motif top, short sleeve kurti\nAliases (bn): সবুজ কুর্তি, সবুজ টপ, লোকজ নকশা, ছোট হাতা\nAliases (banglish): shobuj kurti, sobuj kurti, green kurti, lokoj noksha top",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_001",
+        "source_product_number": 1,
+        "title": "Green Folk-Motif Short-Sleeve Tunic",
+        "title_bn": "সবুজ লোকজ মোটিফের ছোট হাতার টিউনিক",
+        "title_banglish": "Shobuj Lokoj Motif Chhoto Hatar Tunic",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/0",
+        "primary_image_path": "product Image/product1.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "identity"
+      }
+    },
+    {
+      "id": "IMG_001:appearance_and_size:v1",
+      "page_content": "Product ID: IMG_001\nEnglish: Green Folk-Motif Short-Sleeve Tunic\nবাংলা: সবুজ লোকজ মোটিফের ছোট হাতার টিউনিক\nBanglish: Shobuj Lokoj Motif Chhoto Hatar Tunic\nSection: appearance_and_size\nVisual observations (not confirmed available variants):\nobserved_colors: green, yellow, reddish accents\npattern: Rectangular folk-style chest panel\nsleeve: short\nneckline: round\nfit: Unknown / নিশ্চিত নয় / nishchit noy\nAvailable sizes / সাইজ / size: Unknown / নিশ্চিত নয় / nishchit noy\nMeasurements / মাপ / map: unit: Unknown / নিশ্চিত নয় / nishchit noy; chest: Unknown / নিশ্চিত নয় / nishchit noy; length: Unknown / নিশ্চিত নয় / nishchit noy; waist: Unknown / নিশ্চিত নয় / nishchit noy\nConfirmed available colors / পাওয়া যাবে এমন রং / available rong: Unknown / নিশ্চিত নয় / nishchit noy\nMaterial / কাপড় / kapor: Unknown / নিশ্চিত নয় / nishchit noy\nNotes:\nEnglish: Shown green color is an image observation, not a confirmed stock option. Fabric and decoration method are unverified.\nবাংলা: ছবির সবুজ রং স্টকে থাকার নিশ্চয়তা নয়। কাপড় ও নকশা তৈরির পদ্ধতি যাচাই করা হয়নি।\nBanglish: Chhobir shobuj rong stock-e thakar nishchoyota noy. Kapor o noksha toirir poddhoti jachai kora hoyni.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_001",
+        "source_product_number": 1,
+        "title": "Green Folk-Motif Short-Sleeve Tunic",
+        "title_bn": "সবুজ লোকজ মোটিফের ছোট হাতার টিউনিক",
+        "title_banglish": "Shobuj Lokoj Motif Chhoto Hatar Tunic",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/0",
+        "primary_image_path": "product Image/product1.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "appearance_and_size"
+      }
+    },
+    {
+      "id": "IMG_001:use_and_care:v1",
+      "page_content": "Product ID: IMG_001\nEnglish: Green Folk-Motif Short-Sleeve Tunic\nবাংলা: সবুজ লোকজ মোটিফের ছোট হাতার টিউনিক\nBanglish: Shobuj Lokoj Motif Chhoto Hatar Tunic\nSection: use_and_care\nHow to use / কীভাবে ব্যবহার করবেন / kibhabe porbo:\nEnglish: Wear as a tunic with suitable trousers or leggings; check chest and length measurements before ordering.\nবাংলা: উপযুক্ত প্যান্ট বা লেগিংসের সঙ্গে টিউনিক হিসেবে পরুন; অর্ডারের আগে বুকের মাপ ও লম্বা মিলিয়ে নিন।\nBanglish: Upajukto pant ba leggings-er shathe tunic hisebe porun; order-er age buker map o lomba miliye nin.\nCare / যত্ন / jotno:\nEnglish: Check the care label; avoid rubbing or ironing directly over the decorated panel.\nবাংলা: কেয়ার লেবেল দেখুন; নকশার ওপর সরাসরি ঘষা বা ইস্ত্রি এড়িয়ে চলুন।\nBanglish: Care label dekhun; nokshar upor shorashori ghosha ba istri eriye cholun.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_001",
+        "source_product_number": 1,
+        "title": "Green Folk-Motif Short-Sleeve Tunic",
+        "title_bn": "সবুজ লোকজ মোটিফের ছোট হাতার টিউনিক",
+        "title_banglish": "Shobuj Lokoj Motif Chhoto Hatar Tunic",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/0",
+        "primary_image_path": "product Image/product1.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "use_and_care"
+      }
+    },
+    {
+      "id": "IMG_001:purchase_and_custom_design:v1",
+      "page_content": "Product ID: IMG_001\nEnglish: Green Folk-Motif Short-Sleeve Tunic\nবাংলা: সবুজ লোকজ মোটিফের ছোট হাতার টিউনিক\nBanglish: Shobuj Lokoj Motif Chhoto Hatar Tunic\nSection: purchase_and_custom_design\nPrice / দাম / dam: Unknown / নিশ্চিত নয় / nishchit noy\nDiscounted price / ছাড়ের দাম / charer dam: Unknown / নিশ্চিত নয় / nishchit noy\nCurrency / মুদ্রা / mudra: Unknown / নিশ্চিত নয় / nishchit noy\nAvailability / স্টক আছে কি / stock ache ki: needs_confirmation\nStock quantity / স্টকের সংখ্যা / stock shongkha: Unknown / নিশ্চিত নয় / nishchit noy\nPackage contents / প্যাকেজে কী আছে / package-e ki ache: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design / কাস্টম ডিজাইন / custom noksha available: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design status: needs_confirmation\nCustom design additional price: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design lead time (days): Unknown / নিশ্চিত নয় / nishchit noy\nEnglish: Unconfirmed commercial fields require seller confirmation. A design request is not an accepted custom order.\nবাংলা: অনিশ্চিত বাণিজ্যিক তথ্য বিক্রেতার কাছে নিশ্চিত করতে হবে। ডিজাইনের অনুরোধ মানেই কাস্টম অর্ডার গ্রহণ নয়।\nBanglish: Onishchit banijjik tottho bikretar kachhe nishchit korte hobe. Design-er onurodh manei custom order grohon noy.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_001",
+        "source_product_number": 1,
+        "title": "Green Folk-Motif Short-Sleeve Tunic",
+        "title_bn": "সবুজ লোকজ মোটিফের ছোট হাতার টিউনিক",
+        "title_banglish": "Shobuj Lokoj Motif Chhoto Hatar Tunic",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/0",
+        "primary_image_path": "product Image/product1.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "purchase_and_custom_design"
+      }
+    },
+    {
+      "id": "IMG_002:identity:v1",
+      "page_content": "Product ID: IMG_002\nEnglish: Purple White-Motif Sleeveless Dress-Style Tunic\nবাংলা: সাদা মোটিফের বেগুনি হাতাবিহীন ড্রেস টিউনিক\nBanglish: Shada Motif-er Beguni Hatabihin Dress Tunic\nSection: identity\nCategory:\nEnglish: Dress-style tunic\nবাংলা: ড্রেস ধরনের টিউনিক\nBanglish: Dress dhoroner tunic\nDescription:\nEnglish: Purple sleeveless garment with a round neckline, small ruffled shoulder edges and white feather-like ornamental motifs near the upper front and lower side. Exact length and intended dress/tunic sizing are unconfirmed.\nবাংলা: গোল গলা ও কাঁধের ধারে ছোট কুঁচিসহ বেগুনি হাতাবিহীন পোশাক। সামনের ওপরের দিকে ও নিচের পাশে সাদা পালকের মতো নকশা আছে। সঠিক লম্বা ও ড্রেস বা টিউনিকের সাইজ নিশ্চিত নয়।\nBanglish: Gol gola o kandher dhare chhoto kuchi-shoho beguni hatabihin poshak. Shamner oporer dike o nicher pashe shada paloker moto noksha ache. Shothik lomba o dress ba tunic-er size nishchit noy.\nAliases (en): purple dress, purple sleeveless tunic, white feather motif, violet kurti\nAliases (bn): বেগুনি ড্রেস, হাতাবিহীন কুর্তি, সাদা পালক নকশা\nAliases (banglish): beguni dress, beguni kurti, hata chara dress, shada palok noksha",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_002",
+        "source_product_number": 2,
+        "title": "Purple White-Motif Sleeveless Dress-Style Tunic",
+        "title_bn": "সাদা মোটিফের বেগুনি হাতাবিহীন ড্রেস টিউনিক",
+        "title_banglish": "Shada Motif-er Beguni Hatabihin Dress Tunic",
+        "category": "dress_tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/1",
+        "primary_image_path": "product Image/product2.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "medium",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "identity"
+      }
+    },
+    {
+      "id": "IMG_002:appearance_and_size:v1",
+      "page_content": "Product ID: IMG_002\nEnglish: Purple White-Motif Sleeveless Dress-Style Tunic\nবাংলা: সাদা মোটিফের বেগুনি হাতাবিহীন ড্রেস টিউনিক\nBanglish: Shada Motif-er Beguni Hatabihin Dress Tunic\nSection: appearance_and_size\nVisual observations (not confirmed available variants):\nobserved_colors: purple, white\npattern: White feather-like ornamental motifs\nsleeve: sleeveless\nneckline: round\nfit: Unknown / নিশ্চিত নয় / nishchit noy\nAvailable sizes / সাইজ / size: Unknown / নিশ্চিত নয় / nishchit noy\nMeasurements / মাপ / map: unit: Unknown / নিশ্চিত নয় / nishchit noy; chest: Unknown / নিশ্চিত নয় / nishchit noy; length: Unknown / নিশ্চিত নয় / nishchit noy; waist: Unknown / নিশ্চিত নয় / nishchit noy\nConfirmed available colors / পাওয়া যাবে এমন রং / available rong: Unknown / নিশ্চিত নয় / nishchit noy\nMaterial / কাপড় / kapor: Unknown / নিশ্চিত নয় / nishchit noy\nNotes:\nEnglish: Do not assume fabric composition, exact length, free size or custom print availability from the photographs.\nবাংলা: ছবি দেখে কাপড়, সঠিক লম্বা, ফ্রি সাইজ বা কাস্টম প্রিন্টের সুবিধা ধরে নেওয়া যাবে না।\nBanglish: Chhobi dekhe kapor, shothik lomba, free size ba custom print-er shubidha dhore neowa jabe na.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_002",
+        "source_product_number": 2,
+        "title": "Purple White-Motif Sleeveless Dress-Style Tunic",
+        "title_bn": "সাদা মোটিফের বেগুনি হাতাবিহীন ড্রেস টিউনিক",
+        "title_banglish": "Shada Motif-er Beguni Hatabihin Dress Tunic",
+        "category": "dress_tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/1",
+        "primary_image_path": "product Image/product2.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "medium",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "appearance_and_size"
+      }
+    },
+    {
+      "id": "IMG_002:use_and_care:v1",
+      "page_content": "Product ID: IMG_002\nEnglish: Purple White-Motif Sleeveless Dress-Style Tunic\nবাংলা: সাদা মোটিফের বেগুনি হাতাবিহীন ড্রেস টিউনিক\nBanglish: Shada Motif-er Beguni Hatabihin Dress Tunic\nSection: use_and_care\nHow to use / কীভাবে ব্যবহার করবেন / kibhabe porbo:\nEnglish: Style as a dress or over trousers only after confirming garment length and fit; add a layer if preferred.\nবাংলা: লম্বা ও ফিট নিশ্চিত করে ড্রেস হিসেবে বা প্যান্টের ওপর পরুন; চাইলে ওপরের লেয়ার যোগ করুন।\nBanglish: Lomba o fit nishchit kore dress hisebe ba pant-er upor porun; chaile oporer layer jog korun.\nCare / যত্ন / jotno:\nEnglish: Follow the care label and handle the ruffled edges and decorative motifs gently.\nবাংলা: কেয়ার লেবেল মেনে কুঁচি ও নকশার অংশ আলতোভাবে পরিষ্কার করুন।\nBanglish: Care label mene kuchi o nokshar ongsho alto bhabe porishkar korun.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_002",
+        "source_product_number": 2,
+        "title": "Purple White-Motif Sleeveless Dress-Style Tunic",
+        "title_bn": "সাদা মোটিফের বেগুনি হাতাবিহীন ড্রেস টিউনিক",
+        "title_banglish": "Shada Motif-er Beguni Hatabihin Dress Tunic",
+        "category": "dress_tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/1",
+        "primary_image_path": "product Image/product2.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "medium",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "use_and_care"
+      }
+    },
+    {
+      "id": "IMG_002:purchase_and_custom_design:v1",
+      "page_content": "Product ID: IMG_002\nEnglish: Purple White-Motif Sleeveless Dress-Style Tunic\nবাংলা: সাদা মোটিফের বেগুনি হাতাবিহীন ড্রেস টিউনিক\nBanglish: Shada Motif-er Beguni Hatabihin Dress Tunic\nSection: purchase_and_custom_design\nPrice / দাম / dam: Unknown / নিশ্চিত নয় / nishchit noy\nDiscounted price / ছাড়ের দাম / charer dam: Unknown / নিশ্চিত নয় / nishchit noy\nCurrency / মুদ্রা / mudra: Unknown / নিশ্চিত নয় / nishchit noy\nAvailability / স্টক আছে কি / stock ache ki: needs_confirmation\nStock quantity / স্টকের সংখ্যা / stock shongkha: Unknown / নিশ্চিত নয় / nishchit noy\nPackage contents / প্যাকেজে কী আছে / package-e ki ache: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design / কাস্টম ডিজাইন / custom noksha available: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design status: needs_confirmation\nCustom design additional price: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design lead time (days): Unknown / নিশ্চিত নয় / nishchit noy\nEnglish: Unconfirmed commercial fields require seller confirmation. A design request is not an accepted custom order.\nবাংলা: অনিশ্চিত বাণিজ্যিক তথ্য বিক্রেতার কাছে নিশ্চিত করতে হবে। ডিজাইনের অনুরোধ মানেই কাস্টম অর্ডার গ্রহণ নয়।\nBanglish: Onishchit banijjik tottho bikretar kachhe nishchit korte hobe. Design-er onurodh manei custom order grohon noy.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_002",
+        "source_product_number": 2,
+        "title": "Purple White-Motif Sleeveless Dress-Style Tunic",
+        "title_bn": "সাদা মোটিফের বেগুনি হাতাবিহীন ড্রেস টিউনিক",
+        "title_banglish": "Shada Motif-er Beguni Hatabihin Dress Tunic",
+        "category": "dress_tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/1",
+        "primary_image_path": "product Image/product2.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "medium",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "purchase_and_custom_design"
+      }
+    },
+    {
+      "id": "IMG_003:identity:v1",
+      "page_content": "Product ID: IMG_003\nEnglish: Off-White Floral-Hem Wide-Leg Trousers\nবাংলা: ফুলের নকশার অফ-হোয়াইট ওয়াইড লেগ প্যান্ট\nBanglish: Fuler Nokshar Off-White Wide Leg Pant\nSection: identity\nCategory:\nEnglish: Wide-leg trousers\nবাংলা: চওড়া পায়ার প্যান্ট\nBanglish: Chowra payar pant\nDescription:\nEnglish: Off-white wide-leg trousers with a button-and-fly style front and pocket outlines. The styled view shows a cropped silhouette and pink/purple and green floral decoration rising from the hems.\nবাংলা: সামনে বোতাম-ফ্লাই ধরনের অংশ ও পকেটের রেখাসহ অফ-হোয়াইট চওড়া পায়ার প্যান্ট। পরা অবস্থার ছবিতে কিছুটা ছোট লম্বা ও নিচ থেকে ওঠা গোলাপি-বেগুনি ও সবুজ ফুলের নকশা দেখা যায়।\nBanglish: Shamne botam-fly dhoroner ongsho o pocket-er rekha-shoho off-white chowra payar pant. Pora obosthar chhobite kichhuta chhoto lomba o niche theke otha golapi-beguni o shobuj fuler noksha dekha jay.\nAliases (en): white pants, off white trousers, floral hem pants, wide leg pants, culottes\nAliases (bn): সাদা প্যান্ট, অফ হোয়াইট প্যান্ট, ফুলের প্যান্ট, ওয়াইড লেগ প্যান্ট\nAliases (banglish): shada pant, sada pant, off white pant, fuler pant, wide leg pant",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_003",
+        "source_product_number": 3,
+        "title": "Off-White Floral-Hem Wide-Leg Trousers",
+        "title_bn": "ফুলের নকশার অফ-হোয়াইট ওয়াইড লেগ প্যান্ট",
+        "title_banglish": "Fuler Nokshar Off-White Wide Leg Pant",
+        "category": "trousers",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/2",
+        "primary_image_path": "product Image/product3.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "identity"
+      }
+    },
+    {
+      "id": "IMG_003:appearance_and_size:v1",
+      "page_content": "Product ID: IMG_003\nEnglish: Off-White Floral-Hem Wide-Leg Trousers\nবাংলা: ফুলের নকশার অফ-হোয়াইট ওয়াইড লেগ প্যান্ট\nBanglish: Fuler Nokshar Off-White Wide Leg Pant\nSection: appearance_and_size\nVisual observations (not confirmed available variants):\nobserved_colors: off-white, pink, purple, green\npattern: Floral decoration at leg hems\nsleeve: not_applicable\nneckline: not_applicable\nfit: wide_leg_observed\nAvailable sizes / সাইজ / size: Unknown / নিশ্চিত নয় / nishchit noy\nMeasurements / মাপ / map: unit: Unknown / নিশ্চিত নয় / nishchit noy; waist: Unknown / নিশ্চিত নয় / nishchit noy; hip: Unknown / নিশ্চিত নয় / nishchit noy; inseam: Unknown / নিশ্চিত নয় / nishchit noy; length: Unknown / নিশ্চিত নয় / nishchit noy\nConfirmed available colors / পাওয়া যাবে এমন রং / available rong: Unknown / নিশ্চিত নয় / nishchit noy\nMaterial / কাপড় / kapor: Unknown / নিশ্চিত নয় / nishchit noy\nNotes:\nEnglish: Do not infer denim, stretch or embroidery technique. The styled top and footwear are not confirmed package contents.\nবাংলা: ডেনিম, স্ট্রেচ বা এমব্রয়ডারির পদ্ধতি ধরে নেওয়া যাবে না। ছবির টপ ও জুতা প্যাকেজে আছে কি না নিশ্চিত নয়।\nBanglish: Denim, stretch ba embroidery-r poddhoti dhore neowa jabe na. Chhobir top o juta package-e ache ki na nishchit noy.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_003",
+        "source_product_number": 3,
+        "title": "Off-White Floral-Hem Wide-Leg Trousers",
+        "title_bn": "ফুলের নকশার অফ-হোয়াইট ওয়াইড লেগ প্যান্ট",
+        "title_banglish": "Fuler Nokshar Off-White Wide Leg Pant",
+        "category": "trousers",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/2",
+        "primary_image_path": "product Image/product3.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "appearance_and_size"
+      }
+    },
+    {
+      "id": "IMG_003:use_and_care:v1",
+      "page_content": "Product ID: IMG_003\nEnglish: Off-White Floral-Hem Wide-Leg Trousers\nবাংলা: ফুলের নকশার অফ-হোয়াইট ওয়াইড লেগ প্যান্ট\nBanglish: Fuler Nokshar Off-White Wide Leg Pant\nSection: use_and_care\nHow to use / কীভাবে ব্যবহার করবেন / kibhabe porbo:\nEnglish: Pair with a top, shirt or kurti. Confirm waist, hip, rise and inseam; the model's cropped length may fit differently on another person.\nবাংলা: টপ, শার্ট বা কুর্তির সঙ্গে পরুন। কোমর, হিপ, রাইজ ও ইনসিম মিলিয়ে নিন; মডেলের ছোট লম্বা সবার ক্ষেত্রে একরকম হবে না।\nBanglish: Top, shirt ba kurti-r shathe porun. Komor, hip, rise o inseam miliye nin; model-er chhoto lomba shobar khetre ekrokom hobe na.\nCare / যত্ন / jotno:\nEnglish: Check washing instructions for the light fabric and floral details; do not assume bleach is suitable.\nবাংলা: হালকা রঙের কাপড় ও ফুলের নকশার ধোয়ার নির্দেশনা দেখুন; ব্লিচ উপযুক্ত ধরে নেবেন না।\nBanglish: Halka ronger kapor o fuler nokshar dhowar nirdeshona dekhun; bleach upajukto dhore neben na.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_003",
+        "source_product_number": 3,
+        "title": "Off-White Floral-Hem Wide-Leg Trousers",
+        "title_bn": "ফুলের নকশার অফ-হোয়াইট ওয়াইড লেগ প্যান্ট",
+        "title_banglish": "Fuler Nokshar Off-White Wide Leg Pant",
+        "category": "trousers",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/2",
+        "primary_image_path": "product Image/product3.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "use_and_care"
+      }
+    },
+    {
+      "id": "IMG_003:purchase_and_custom_design:v1",
+      "page_content": "Product ID: IMG_003\nEnglish: Off-White Floral-Hem Wide-Leg Trousers\nবাংলা: ফুলের নকশার অফ-হোয়াইট ওয়াইড লেগ প্যান্ট\nBanglish: Fuler Nokshar Off-White Wide Leg Pant\nSection: purchase_and_custom_design\nPrice / দাম / dam: Unknown / নিশ্চিত নয় / nishchit noy\nDiscounted price / ছাড়ের দাম / charer dam: Unknown / নিশ্চিত নয় / nishchit noy\nCurrency / মুদ্রা / mudra: Unknown / নিশ্চিত নয় / nishchit noy\nAvailability / স্টক আছে কি / stock ache ki: needs_confirmation\nStock quantity / স্টকের সংখ্যা / stock shongkha: Unknown / নিশ্চিত নয় / nishchit noy\nPackage contents / প্যাকেজে কী আছে / package-e ki ache: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design / কাস্টম ডিজাইন / custom noksha available: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design status: needs_confirmation\nCustom design additional price: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design lead time (days): Unknown / নিশ্চিত নয় / nishchit noy\nEnglish: Unconfirmed commercial fields require seller confirmation. A design request is not an accepted custom order.\nবাংলা: অনিশ্চিত বাণিজ্যিক তথ্য বিক্রেতার কাছে নিশ্চিত করতে হবে। ডিজাইনের অনুরোধ মানেই কাস্টম অর্ডার গ্রহণ নয়।\nBanglish: Onishchit banijjik tottho bikretar kachhe nishchit korte hobe. Design-er onurodh manei custom order grohon noy.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_003",
+        "source_product_number": 3,
+        "title": "Off-White Floral-Hem Wide-Leg Trousers",
+        "title_bn": "ফুলের নকশার অফ-হোয়াইট ওয়াইড লেগ প্যান্ট",
+        "title_banglish": "Fuler Nokshar Off-White Wide Leg Pant",
+        "category": "trousers",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/2",
+        "primary_image_path": "product Image/product3.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "purchase_and_custom_design"
+      }
+    },
+    {
+      "id": "IMG_004:identity:v1",
+      "page_content": "Product ID: IMG_004\nEnglish: Brown Decorative Tunic — Design Group Needs Review\nবাংলা: বাদামি নকশার টিউনিক — ডিজাইন গ্রুপ যাচাই প্রয়োজন\nBanglish: Badami Nokshar Tunic — Design Group Jachai Proyojon\nSection: identity\nCategory:\nEnglish: Tunic / kurti\nবাংলা: টিউনিক / কুর্তি\nBanglish: Tunic / kurti\nDescription:\nEnglish: Filename group containing brown tunic images with three-quarter sleeves and light edging. One hanging image has small neckline decoration, while another has a large white diamond motif. It is not established whether these are different sides, variants or separate products. The styled photo includes a scarf and jeans.\nবাংলা: একই ফাইলনেম গ্রুপে বাদামি তিন-চতুর্থাংশ হাতা ও হালকা পাড়ের টিউনিকের ছবি আছে। একটি ছবিতে গলার কাছে ছোট নকশা, অন্যটিতে বড় সাদা ডায়মন্ড মোটিফ। এগুলো একই পোশাকের দুই পাশ, ভ্যারিয়েন্ট নাকি আলাদা পণ্য তা নিশ্চিত নয়। পরা অবস্থার ছবিতে ওড়না ও জিনসও আছে।\nBanglish: Eki filename group-e badami three-quarter hata o halka parer tunic-er chhobi ache. Ekti chhobite golar kachhe chhoto noksha, onnotite boro shada diamond motif. Egulo eki poshaker dui pash, variant naki alada ponno ta nishchit noy. Pora obosthar chhobite orna o jeans-o ache.\nAliases (en): brown kurti, brown tunic, white diamond motif, brown scarf styling\nAliases (bn): বাদামি কুর্তি, বাদামি টিউনিক, সাদা ডায়মন্ড নকশা\nAliases (banglish): badami kurti, brown kurti, badami tunic, shada diamond noksha",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_004",
+        "source_product_number": 4,
+        "title": "Brown Decorative Tunic — Design Group Needs Review",
+        "title_bn": "বাদামি নকশার টিউনিক — ডিজাইন গ্রুপ যাচাই প্রয়োজন",
+        "title_banglish": "Badami Nokshar Tunic — Design Group Jachai Proyojon",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/3",
+        "primary_image_path": "product Image/product4.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "medium",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "identity"
+      }
+    },
+    {
+      "id": "IMG_004:appearance_and_size:v1",
+      "page_content": "Product ID: IMG_004\nEnglish: Brown Decorative Tunic — Design Group Needs Review\nবাংলা: বাদামি নকশার টিউনিক — ডিজাইন গ্রুপ যাচাই প্রয়োজন\nBanglish: Badami Nokshar Tunic — Design Group Jachai Proyojon\nSection: appearance_and_size\nVisual observations (not confirmed available variants):\nobserved_colors: brown, white accents\npattern: Multiple decorative layouts; grouping unverified\nsleeve: three_quarter\nneckline: Unknown / নিশ্চিত নয় / nishchit noy\nfit: Unknown / নিশ্চিত নয় / nishchit noy\nAvailable sizes / সাইজ / size: Unknown / নিশ্চিত নয় / nishchit noy\nMeasurements / মাপ / map: unit: Unknown / নিশ্চিত নয় / nishchit noy; chest: Unknown / নিশ্চিত নয় / nishchit noy; length: Unknown / নিশ্চিত নয় / nishchit noy; waist: Unknown / নিশ্চিত নয় / nishchit noy\nConfirmed available colors / পাওয়া যাবে এমন রং / available rong: Unknown / নিশ্চিত নয় / nishchit noy\nMaterial / কাপড় / kapor: Unknown / নিশ্চিত নয় / nishchit noy\nNotes:\nEnglish: Do not present the white-diamond photo as a confirmed back view or promise a scarf set. Resolve image grouping before publication.\nবাংলা: সাদা ডায়মন্ডের ছবিকে নিশ্চিত পেছনের দিক বলা বা ওড়নাসহ সেটের প্রতিশ্রুতি দেওয়া যাবে না। প্রকাশের আগে ছবির গ্রুপ যাচাই করুন।\nBanglish: Shada diamond-er chhobike nishchit pechhoner dik bola ba orna-shoho set-er protishruti deowa jabe na. Prokash-er age chhobir group jachai korun.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_004",
+        "source_product_number": 4,
+        "title": "Brown Decorative Tunic — Design Group Needs Review",
+        "title_bn": "বাদামি নকশার টিউনিক — ডিজাইন গ্রুপ যাচাই প্রয়োজন",
+        "title_banglish": "Badami Nokshar Tunic — Design Group Jachai Proyojon",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/3",
+        "primary_image_path": "product Image/product4.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "medium",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "appearance_and_size"
+      }
+    },
+    {
+      "id": "IMG_004:use_and_care:v1",
+      "page_content": "Product ID: IMG_004\nEnglish: Brown Decorative Tunic — Design Group Needs Review\nবাংলা: বাদামি নকশার টিউনিক — ডিজাইন গ্রুপ যাচাই প্রয়োজন\nBanglish: Badami Nokshar Tunic — Design Group Jachai Proyojon\nSection: use_and_care\nHow to use / কীভাবে ব্যবহার করবেন / kibhabe porbo:\nEnglish: Choose the exact photographed design with the seller before ordering. A tunic can be styled with trousers; scarf and jeans inclusion must be checked separately.\nবাংলা: অর্ডারের আগে বিক্রেতার সঙ্গে ছবির নির্দিষ্ট ডিজাইন বেছে নিন। প্যান্টের সঙ্গে টিউনিক পরা যায়; ওড়না ও জিনস অন্তর্ভুক্ত কি না আলাদা করে জানুন।\nBanglish: Order-er age bikretar shathe chhobir nirdishto design bechhe nin. Pant-er shathe tunic pora jay; orna o jeans ontorbhukto ki na alada kore janun.\nCare / যত্ন / jotno:\nEnglish: Follow the garment label and protect decorative areas from direct heat.\nবাংলা: পোশাকের লেবেল অনুসরণ করুন ও নকশার অংশ সরাসরি তাপ থেকে বাঁচান।\nBanglish: Poshaker label onushoron korun o nokshar ongsho shorashori tap theke bachan.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_004",
+        "source_product_number": 4,
+        "title": "Brown Decorative Tunic — Design Group Needs Review",
+        "title_bn": "বাদামি নকশার টিউনিক — ডিজাইন গ্রুপ যাচাই প্রয়োজন",
+        "title_banglish": "Badami Nokshar Tunic — Design Group Jachai Proyojon",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/3",
+        "primary_image_path": "product Image/product4.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "medium",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "use_and_care"
+      }
+    },
+    {
+      "id": "IMG_004:purchase_and_custom_design:v1",
+      "page_content": "Product ID: IMG_004\nEnglish: Brown Decorative Tunic — Design Group Needs Review\nবাংলা: বাদামি নকশার টিউনিক — ডিজাইন গ্রুপ যাচাই প্রয়োজন\nBanglish: Badami Nokshar Tunic — Design Group Jachai Proyojon\nSection: purchase_and_custom_design\nPrice / দাম / dam: Unknown / নিশ্চিত নয় / nishchit noy\nDiscounted price / ছাড়ের দাম / charer dam: Unknown / নিশ্চিত নয় / nishchit noy\nCurrency / মুদ্রা / mudra: Unknown / নিশ্চিত নয় / nishchit noy\nAvailability / স্টক আছে কি / stock ache ki: needs_confirmation\nStock quantity / স্টকের সংখ্যা / stock shongkha: Unknown / নিশ্চিত নয় / nishchit noy\nPackage contents / প্যাকেজে কী আছে / package-e ki ache: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design / কাস্টম ডিজাইন / custom noksha available: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design status: needs_confirmation\nCustom design additional price: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design lead time (days): Unknown / নিশ্চিত নয় / nishchit noy\nEnglish: Unconfirmed commercial fields require seller confirmation. A design request is not an accepted custom order.\nবাংলা: অনিশ্চিত বাণিজ্যিক তথ্য বিক্রেতার কাছে নিশ্চিত করতে হবে। ডিজাইনের অনুরোধ মানেই কাস্টম অর্ডার গ্রহণ নয়।\nBanglish: Onishchit banijjik tottho bikretar kachhe nishchit korte hobe. Design-er onurodh manei custom order grohon noy.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_004",
+        "source_product_number": 4,
+        "title": "Brown Decorative Tunic — Design Group Needs Review",
+        "title_bn": "বাদামি নকশার টিউনিক — ডিজাইন গ্রুপ যাচাই প্রয়োজন",
+        "title_banglish": "Badami Nokshar Tunic — Design Group Jachai Proyojon",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/3",
+        "primary_image_path": "product Image/product4.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "medium",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "purchase_and_custom_design"
+      }
+    },
+    {
+      "id": "IMG_005:identity:v1",
+      "page_content": "Product ID: IMG_005\nEnglish: Red Kurti with Blue Central Motif\nবাংলা: নীল মোটিফের লাল কুর্তি\nBanglish: Nil Motif-er Lal Kurti\nSection: identity\nCategory:\nEnglish: Kurti / tunic\nবাংলা: কুর্তি / টিউনিক\nBanglish: Kurti / tunic\nDescription:\nEnglish: Red short-sleeve kurti with a contrast-trimmed split neckline, a large blue central motif and yellow/orange decoration near the lower hem. A styled photo pairs it with red trousers; a sale bundle is not confirmed.\nবাংলা: বিপরীত রঙের পাড়সহ চেরা গলা, মাঝখানে বড় নীল মোটিফ ও নিচে হলুদ-কমলা নকশার লাল ছোট হাতার কুর্তি। পরা অবস্থার ছবিতে লাল প্যান্ট আছে; একসঙ্গে বিক্রির সেট নিশ্চিত নয়।\nBanglish: Biporit ronger par-shoho chera gola, majhkhane boro nil motif o niche holud-komola nokshar lal chhoto hatar kurti. Pora obosthar chhobite lal pant ache; ekshathe bikrir set nishchit noy.\nAliases (en): red kurti, blue motif red tunic, red short sleeve top\nAliases (bn): লাল কুর্তি, নীল নকশার লাল টপ, লাল কামিজ\nAliases (banglish): lal kurti, laal kurti, nil nokshar lal top, lal kamiz",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_005",
+        "source_product_number": 5,
+        "title": "Red Kurti with Blue Central Motif",
+        "title_bn": "নীল মোটিফের লাল কুর্তি",
+        "title_banglish": "Nil Motif-er Lal Kurti",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/4",
+        "primary_image_path": "product Image/product5.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "identity"
+      }
+    },
+    {
+      "id": "IMG_005:appearance_and_size:v1",
+      "page_content": "Product ID: IMG_005\nEnglish: Red Kurti with Blue Central Motif\nবাংলা: নীল মোটিফের লাল কুর্তি\nBanglish: Nil Motif-er Lal Kurti\nSection: appearance_and_size\nVisual observations (not confirmed available variants):\nobserved_colors: red, blue, yellow/orange accents\npattern: Blue central motif and decorated hem\nsleeve: short\nneckline: split_with_contrast_trim\nfit: Unknown / নিশ্চিত নয় / nishchit noy\nAvailable sizes / সাইজ / size: Unknown / নিশ্চিত নয় / nishchit noy\nMeasurements / মাপ / map: unit: Unknown / নিশ্চিত নয় / nishchit noy; chest: Unknown / নিশ্চিত নয় / nishchit noy; length: Unknown / নিশ্চিত নয় / nishchit noy; waist: Unknown / নিশ্চিত নয় / nishchit noy\nConfirmed available colors / পাওয়া যাবে এমন রং / available rong: Unknown / নিশ্চিত নয় / nishchit noy\nMaterial / কাপড় / kapor: Unknown / নিশ্চিত নয় / nishchit noy\nNotes:\nEnglish: IMG_006 is a possible styling companion only, not a verified matching set or included item.\nবাংলা: IMG_006 শুধু সম্ভাব্য মানানসই পণ্য; নিশ্চিত ম্যাচিং সেট বা অন্তর্ভুক্ত পণ্য নয়।\nBanglish: IMG_006 shudhu shombhabbo manansoi ponno; nishchit matching set ba ontorbhukto ponno noy.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_005",
+        "source_product_number": 5,
+        "title": "Red Kurti with Blue Central Motif",
+        "title_bn": "নীল মোটিফের লাল কুর্তি",
+        "title_banglish": "Nil Motif-er Lal Kurti",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/4",
+        "primary_image_path": "product Image/product5.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "appearance_and_size"
+      }
+    },
+    {
+      "id": "IMG_005:use_and_care:v1",
+      "page_content": "Product ID: IMG_005\nEnglish: Red Kurti with Blue Central Motif\nবাংলা: নীল মোটিফের লাল কুর্তি\nBanglish: Nil Motif-er Lal Kurti\nSection: use_and_care\nHow to use / কীভাবে ব্যবহার করবেন / kibhabe porbo:\nEnglish: Wear with compatible trousers. Ask whether IMG_006 red trousers match and whether they must be purchased separately.\nবাংলা: মানানসই প্যান্টের সঙ্গে পরুন। IMG_006 লাল প্যান্টটি মেলে কি না ও আলাদা কিনতে হবে কি না জেনে নিন।\nBanglish: Manansoi pant-er shathe porun. IMG_006 lal pant-ti mele ki na o alada kinte hobe ki na jene nin.\nCare / যত্ন / jotno:\nEnglish: Check the label before washing and avoid assuming the red fabric is colorfast.\nবাংলা: ধোয়ার আগে লেবেল দেখুন; লাল কাপড়ের রং উঠবে না ধরে নেবেন না।\nBanglish: Dhowar age label dekhun; lal kaporer rong uthbe na dhore neben na.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_005",
+        "source_product_number": 5,
+        "title": "Red Kurti with Blue Central Motif",
+        "title_bn": "নীল মোটিফের লাল কুর্তি",
+        "title_banglish": "Nil Motif-er Lal Kurti",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/4",
+        "primary_image_path": "product Image/product5.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "use_and_care"
+      }
+    },
+    {
+      "id": "IMG_005:purchase_and_custom_design:v1",
+      "page_content": "Product ID: IMG_005\nEnglish: Red Kurti with Blue Central Motif\nবাংলা: নীল মোটিফের লাল কুর্তি\nBanglish: Nil Motif-er Lal Kurti\nSection: purchase_and_custom_design\nPrice / দাম / dam: Unknown / নিশ্চিত নয় / nishchit noy\nDiscounted price / ছাড়ের দাম / charer dam: Unknown / নিশ্চিত নয় / nishchit noy\nCurrency / মুদ্রা / mudra: Unknown / নিশ্চিত নয় / nishchit noy\nAvailability / স্টক আছে কি / stock ache ki: needs_confirmation\nStock quantity / স্টকের সংখ্যা / stock shongkha: Unknown / নিশ্চিত নয় / nishchit noy\nPackage contents / প্যাকেজে কী আছে / package-e ki ache: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design / কাস্টম ডিজাইন / custom noksha available: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design status: needs_confirmation\nCustom design additional price: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design lead time (days): Unknown / নিশ্চিত নয় / nishchit noy\nEnglish: Unconfirmed commercial fields require seller confirmation. A design request is not an accepted custom order.\nবাংলা: অনিশ্চিত বাণিজ্যিক তথ্য বিক্রেতার কাছে নিশ্চিত করতে হবে। ডিজাইনের অনুরোধ মানেই কাস্টম অর্ডার গ্রহণ নয়।\nBanglish: Onishchit banijjik tottho bikretar kachhe nishchit korte hobe. Design-er onurodh manei custom order grohon noy.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_005",
+        "source_product_number": 5,
+        "title": "Red Kurti with Blue Central Motif",
+        "title_bn": "নীল মোটিফের লাল কুর্তি",
+        "title_banglish": "Nil Motif-er Lal Kurti",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/4",
+        "primary_image_path": "product Image/product5.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "purchase_and_custom_design"
+      }
+    },
+    {
+      "id": "IMG_006:identity:v1",
+      "page_content": "Product ID: IMG_006\nEnglish: Red Wide-Leg Trousers with Contrast Hems\nবাংলা: বিপরীত রঙের পাড়ের লাল ওয়াইড লেগ প্যান্ট\nBanglish: Contrast Parer Lal Wide Leg Pant\nSection: identity\nCategory:\nEnglish: Wide-leg trousers / palazzo-style pants\nবাংলা: ওয়াইড লেগ / পালাজো ধরনের প্যান্ট\nBanglish: Wide leg / palazzo dhoroner pant\nDescription:\nEnglish: Red wide-leg trousers with a gathered waistband and narrow blue/purple contrast edging near the leg hems. The waistband looks gathered, but elastic construction and stretch range need verification.\nবাংলা: কোমরে কুঁচি ও পায়ার নিচে সরু নীল-বেগুনি পাড়ের লাল চওড়া প্যান্ট। কোমর কুঁচি করা দেখালেও ইলাস্টিক আছে কি না ও কতটা প্রসারিত হয় তা যাচাই প্রয়োজন।\nBanglish: Komore kuchi o payar niche shoru nil-beguni parer lal chowra pant. Komor kuchi kora dekhaleo elastic ache ki na o kotota prosharito hoy ta jachai proyojon.\nAliases (en): red pants, red palazzo, red wide leg trousers, contrast hem trousers\nAliases (bn): লাল প্যান্ট, লাল পালাজো, চওড়া প্যান্ট\nAliases (banglish): lal pant, laal palazzo, lal pajama, chowra pant",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_006",
+        "source_product_number": 6,
+        "title": "Red Wide-Leg Trousers with Contrast Hems",
+        "title_bn": "বিপরীত রঙের পাড়ের লাল ওয়াইড লেগ প্যান্ট",
+        "title_banglish": "Contrast Parer Lal Wide Leg Pant",
+        "category": "trousers",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/5",
+        "primary_image_path": "product Image/product6.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "identity"
+      }
+    },
+    {
+      "id": "IMG_006:appearance_and_size:v1",
+      "page_content": "Product ID: IMG_006\nEnglish: Red Wide-Leg Trousers with Contrast Hems\nবাংলা: বিপরীত রঙের পাড়ের লাল ওয়াইড লেগ প্যান্ট\nBanglish: Contrast Parer Lal Wide Leg Pant\nSection: appearance_and_size\nVisual observations (not confirmed available variants):\nobserved_colors: red, blue/purple trim\npattern: Solid body with contrasting hem trim\nsleeve: not_applicable\nneckline: not_applicable\nfit: wide_leg_observed\nAvailable sizes / সাইজ / size: Unknown / নিশ্চিত নয় / nishchit noy\nMeasurements / মাপ / map: unit: Unknown / নিশ্চিত নয় / nishchit noy; waist: Unknown / নিশ্চিত নয় / nishchit noy; hip: Unknown / নিশ্চিত নয় / nishchit noy; inseam: Unknown / নিশ্চিত নয় / nishchit noy; length: Unknown / নিশ্চিত নয় / nishchit noy\nConfirmed available colors / পাওয়া যাবে এমন রং / available rong: Unknown / নিশ্চিত নয় / nishchit noy\nMaterial / কাপড় / kapor: Unknown / নিশ্চিত নয় / nishchit noy\nNotes:\nEnglish: Do not claim an elastic or free-size waist without measurements and seller confirmation.\nবাংলা: মাপ ও বিক্রেতার নিশ্চয়তা ছাড়া ইলাস্টিক বা ফ্রি সাইজ কোমর দাবি করবেন না।\nBanglish: Map o bikretar nishchoyota chhara elastic ba free size komor dabi korben na.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_006",
+        "source_product_number": 6,
+        "title": "Red Wide-Leg Trousers with Contrast Hems",
+        "title_bn": "বিপরীত রঙের পাড়ের লাল ওয়াইড লেগ প্যান্ট",
+        "title_banglish": "Contrast Parer Lal Wide Leg Pant",
+        "category": "trousers",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/5",
+        "primary_image_path": "product Image/product6.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "appearance_and_size"
+      }
+    },
+    {
+      "id": "IMG_006:use_and_care:v1",
+      "page_content": "Product ID: IMG_006\nEnglish: Red Wide-Leg Trousers with Contrast Hems\nবাংলা: বিপরীত রঙের পাড়ের লাল ওয়াইড লেগ প্যান্ট\nBanglish: Contrast Parer Lal Wide Leg Pant\nSection: use_and_care\nHow to use / কীভাবে ব্যবহার করবেন / kibhabe porbo:\nEnglish: Wear with a kurti or tunic after confirming waist and length. Ask the seller whether IMG_005 is a matching item; it is not automatically included.\nবাংলা: কোমর ও লম্বা নিশ্চিত করে কুর্তি বা টিউনিকের সঙ্গে পরুন। IMG_005 মানানসই কি না বিক্রেতাকে জিজ্ঞেস করুন; এটি স্বয়ংক্রিয়ভাবে অন্তর্ভুক্ত নয়।\nBanglish: Komor o lomba nishchit kore kurti ba tunic-er shathe porun. IMG_005 manansoi ki na bikretake jiggesh korun; eti shoyongkriyobhabe ontorbhukto noy.\nCare / যত্ন / jotno:\nEnglish: Follow the label and check color-transfer precautions before washing with lighter items.\nবাংলা: লেবেল অনুসরণ করুন ও হালকা রঙের কাপড়ের সঙ্গে ধোয়ার আগে রং ছড়ানোর সতর্কতা দেখুন।\nBanglish: Label onushoron korun o halka ronger kaporer shathe dhowar age rong chhoranor shotorkota dekhun.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_006",
+        "source_product_number": 6,
+        "title": "Red Wide-Leg Trousers with Contrast Hems",
+        "title_bn": "বিপরীত রঙের পাড়ের লাল ওয়াইড লেগ প্যান্ট",
+        "title_banglish": "Contrast Parer Lal Wide Leg Pant",
+        "category": "trousers",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/5",
+        "primary_image_path": "product Image/product6.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "use_and_care"
+      }
+    },
+    {
+      "id": "IMG_006:purchase_and_custom_design:v1",
+      "page_content": "Product ID: IMG_006\nEnglish: Red Wide-Leg Trousers with Contrast Hems\nবাংলা: বিপরীত রঙের পাড়ের লাল ওয়াইড লেগ প্যান্ট\nBanglish: Contrast Parer Lal Wide Leg Pant\nSection: purchase_and_custom_design\nPrice / দাম / dam: Unknown / নিশ্চিত নয় / nishchit noy\nDiscounted price / ছাড়ের দাম / charer dam: Unknown / নিশ্চিত নয় / nishchit noy\nCurrency / মুদ্রা / mudra: Unknown / নিশ্চিত নয় / nishchit noy\nAvailability / স্টক আছে কি / stock ache ki: needs_confirmation\nStock quantity / স্টকের সংখ্যা / stock shongkha: Unknown / নিশ্চিত নয় / nishchit noy\nPackage contents / প্যাকেজে কী আছে / package-e ki ache: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design / কাস্টম ডিজাইন / custom noksha available: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design status: needs_confirmation\nCustom design additional price: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design lead time (days): Unknown / নিশ্চিত নয় / nishchit noy\nEnglish: Unconfirmed commercial fields require seller confirmation. A design request is not an accepted custom order.\nবাংলা: অনিশ্চিত বাণিজ্যিক তথ্য বিক্রেতার কাছে নিশ্চিত করতে হবে। ডিজাইনের অনুরোধ মানেই কাস্টম অর্ডার গ্রহণ নয়।\nBanglish: Onishchit banijjik tottho bikretar kachhe nishchit korte hobe. Design-er onurodh manei custom order grohon noy.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_006",
+        "source_product_number": 6,
+        "title": "Red Wide-Leg Trousers with Contrast Hems",
+        "title_bn": "বিপরীত রঙের পাড়ের লাল ওয়াইড লেগ প্যান্ট",
+        "title_banglish": "Contrast Parer Lal Wide Leg Pant",
+        "category": "trousers",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/5",
+        "primary_image_path": "product Image/product6.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "purchase_and_custom_design"
+      }
+    },
+    {
+      "id": "IMG_007:identity:v1",
+      "page_content": "Product ID: IMG_007\nEnglish: Magenta-Purple Saree with Light Motif Border\nবাংলা: হালকা মোটিফের পাড়ের ম্যাজেন্টা-বেগুনি শাড়ি\nBanglish: Halka Motif Parer Magenta-Beguni Shari\nSection: identity\nCategory:\nEnglish: Saree\nবাংলা: শাড়ি\nBanglish: Shari\nDescription:\nEnglish: Magenta-purple saree with a light-colored geometric border and rows of small leaf/drop-like motifs in the draped end area. The styled photo shows a blouse, but blouse fabric and other accessories are not confirmed inclusions.\nবাংলা: হালকা রঙের জ্যামিতিক পাড় ও আঁচলের দিকে সারিবদ্ধ ছোট পাতা বা ফোঁটার মতো মোটিফের ম্যাজেন্টা-বেগুনি শাড়ি। ছবিতে ব্লাউজ দেখা গেলেও ব্লাউজ পিস বা অন্য উপকরণ অন্তর্ভুক্ত কি না নিশ্চিত নয়।\nBanglish: Halka ronger jyamitik par o ancholer dike shariboddho chhoto pata ba photar moto motif-er magenta-beguni shari. Chhobite blouse dekha geleo blouse piece ba onno upokoron ontorbhukto ki na nishchit noy.\nAliases (en): magenta saree, purple sari, motif border saree\nAliases (bn): ম্যাজেন্টা শাড়ি, বেগুনি শাড়ি, নকশা পাড়ের শাড়ি\nAliases (banglish): magenta shari, beguni saree, beguni sari, noksha parer shari",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_007",
+        "source_product_number": 7,
+        "title": "Magenta-Purple Saree with Light Motif Border",
+        "title_bn": "হালকা মোটিফের পাড়ের ম্যাজেন্টা-বেগুনি শাড়ি",
+        "title_banglish": "Halka Motif Parer Magenta-Beguni Shari",
+        "category": "saree",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/6",
+        "primary_image_path": "product Image/product7.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "identity"
+      }
+    },
+    {
+      "id": "IMG_007:appearance_and_size:v1",
+      "page_content": "Product ID: IMG_007\nEnglish: Magenta-Purple Saree with Light Motif Border\nবাংলা: হালকা মোটিফের পাড়ের ম্যাজেন্টা-বেগুনি শাড়ি\nBanglish: Halka Motif Parer Magenta-Beguni Shari\nSection: appearance_and_size\nVisual observations (not confirmed available variants):\nobserved_colors: magenta-purple, white/light motifs\npattern: Geometric border and repeated leaf/drop motifs\nsleeve: not_applicable\nneckline: not_applicable\nfit: draped\nAvailable sizes / সাইজ / size: Unknown / নিশ্চিত নয় / nishchit noy\nMeasurements / মাপ / map: unit: Unknown / নিশ্চিত নয় / nishchit noy; length: Unknown / নিশ্চিত নয় / nishchit noy; width: Unknown / নিশ্চিত নয় / nishchit noy\nConfirmed available colors / পাওয়া যাবে এমন রং / available rong: Unknown / নিশ্চিত নয় / nishchit noy\nMaterial / কাপড় / kapor: Unknown / নিশ্চিত নয় / nishchit noy\nNotes:\nEnglish: Fabric type, weaving/printing technique, saree length and blouse-piece inclusion are unknown.\nবাংলা: কাপড়, বোনা বা প্রিন্টের পদ্ধতি, শাড়ির লম্বা ও ব্লাউজ পিস অন্তর্ভুক্তি অজানা।\nBanglish: Kapor, bona ba print-er poddhoti, sharir lomba o blouse piece ontorbhukti ojana.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_007",
+        "source_product_number": 7,
+        "title": "Magenta-Purple Saree with Light Motif Border",
+        "title_bn": "হালকা মোটিফের পাড়ের ম্যাজেন্টা-বেগুনি শাড়ি",
+        "title_banglish": "Halka Motif Parer Magenta-Beguni Shari",
+        "category": "saree",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/6",
+        "primary_image_path": "product Image/product7.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "appearance_and_size"
+      }
+    },
+    {
+      "id": "IMG_007:use_and_care:v1",
+      "page_content": "Product ID: IMG_007\nEnglish: Magenta-Purple Saree with Light Motif Border\nবাংলা: হালকা মোটিফের পাড়ের ম্যাজেন্টা-বেগুনি শাড়ি\nBanglish: Halka Motif Parer Magenta-Beguni Shari\nSection: use_and_care\nHow to use / কীভাবে ব্যবহার করবেন / kibhabe porbo:\nEnglish: Drape as a saree using suitable innerwear and a blouse. Confirm length, width, blouse-piece inclusion and any finishing required before purchase.\nবাংলা: উপযুক্ত অন্তর্বাস ও ব্লাউজের সঙ্গে শাড়ি হিসেবে পরুন। কেনার আগে লম্বা, চওড়া, ব্লাউজ পিস ও প্রয়োজনীয় ফিনিশিং নিশ্চিত করুন।\nBanglish: Upajukto innerwear o blouse-er shathe shari hisebe porun. Kenar age lomba, chowra, blouse piece o proyojoniyo finishing nishchit korun.\nCare / যত্ন / jotno:\nEnglish: Ask for fabric-specific cleaning instructions; do not assume machine washing or dry cleaning is appropriate.\nবাংলা: কাপড় অনুযায়ী পরিষ্কারের নির্দেশনা নিন; মেশিন ওয়াশ বা ড্রাই ক্লিন উপযুক্ত ধরে নেবেন না।\nBanglish: Kapor onujayi porishkarer nirdeshona nin; machine wash ba dry clean upajukto dhore neben na.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_007",
+        "source_product_number": 7,
+        "title": "Magenta-Purple Saree with Light Motif Border",
+        "title_bn": "হালকা মোটিফের পাড়ের ম্যাজেন্টা-বেগুনি শাড়ি",
+        "title_banglish": "Halka Motif Parer Magenta-Beguni Shari",
+        "category": "saree",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/6",
+        "primary_image_path": "product Image/product7.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "use_and_care"
+      }
+    },
+    {
+      "id": "IMG_007:purchase_and_custom_design:v1",
+      "page_content": "Product ID: IMG_007\nEnglish: Magenta-Purple Saree with Light Motif Border\nবাংলা: হালকা মোটিফের পাড়ের ম্যাজেন্টা-বেগুনি শাড়ি\nBanglish: Halka Motif Parer Magenta-Beguni Shari\nSection: purchase_and_custom_design\nPrice / দাম / dam: Unknown / নিশ্চিত নয় / nishchit noy\nDiscounted price / ছাড়ের দাম / charer dam: Unknown / নিশ্চিত নয় / nishchit noy\nCurrency / মুদ্রা / mudra: Unknown / নিশ্চিত নয় / nishchit noy\nAvailability / স্টক আছে কি / stock ache ki: needs_confirmation\nStock quantity / স্টকের সংখ্যা / stock shongkha: Unknown / নিশ্চিত নয় / nishchit noy\nPackage contents / প্যাকেজে কী আছে / package-e ki ache: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design / কাস্টম ডিজাইন / custom noksha available: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design status: needs_confirmation\nCustom design additional price: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design lead time (days): Unknown / নিশ্চিত নয় / nishchit noy\nEnglish: Unconfirmed commercial fields require seller confirmation. A design request is not an accepted custom order.\nবাংলা: অনিশ্চিত বাণিজ্যিক তথ্য বিক্রেতার কাছে নিশ্চিত করতে হবে। ডিজাইনের অনুরোধ মানেই কাস্টম অর্ডার গ্রহণ নয়।\nBanglish: Onishchit banijjik tottho bikretar kachhe nishchit korte hobe. Design-er onurodh manei custom order grohon noy.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_007",
+        "source_product_number": 7,
+        "title": "Magenta-Purple Saree with Light Motif Border",
+        "title_bn": "হালকা মোটিফের পাড়ের ম্যাজেন্টা-বেগুনি শাড়ি",
+        "title_banglish": "Halka Motif Parer Magenta-Beguni Shari",
+        "category": "saree",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/6",
+        "primary_image_path": "product Image/product7.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "purchase_and_custom_design"
+      }
+    },
+    {
+      "id": "IMG_008:identity:v1",
+      "page_content": "Product ID: IMG_008\nEnglish: Muted Blue Motif Button-Front Shirt\nবাংলা: হালকা মোটিফের মিউটেড নীল বোতাম শার্ট\nBanglish: Halka Motif-er Muted Nil Botam Shirt\nSection: identity\nCategory:\nEnglish: Collared shirt\nবাংলা: কলার শার্ট\nBanglish: Collar shirt\nDescription:\nEnglish: Muted denim-blue colored shirt with a collar, front buttons, long sleeves and low-contrast decorative motifs on the front. Blue color does not establish that the fabric is denim.\nবাংলা: কলার, সামনে বোতাম, লম্বা হাতা ও সামনের দিকে কম কনট্রাস্টের নকশাসহ মিউটেড ডেনিম-নীল রঙের শার্ট। নীল রং দেখেই কাপড় ডেনিম বলা যায় না।\nBanglish: Collar, shamne botam, lomba hata o shamner dike kom contrast-er noksha-shoho muted denim-nil ronger shirt. Nil rong dekhei kapor denim bola jay na.\nAliases (en): blue shirt, collared blue shirt, long sleeve shirt, motif shirt\nAliases (bn): নীল শার্ট, কলার শার্ট, ফুল হাতা শার্ট\nAliases (banglish): nil shirt, neel shirt, blue shirt, full hata shirt",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_008",
+        "source_product_number": 8,
+        "title": "Muted Blue Motif Button-Front Shirt",
+        "title_bn": "হালকা মোটিফের মিউটেড নীল বোতাম শার্ট",
+        "title_banglish": "Halka Motif-er Muted Nil Botam Shirt",
+        "category": "shirt",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/7",
+        "primary_image_path": "product Image/product8.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "identity"
+      }
+    },
+    {
+      "id": "IMG_008:appearance_and_size:v1",
+      "page_content": "Product ID: IMG_008\nEnglish: Muted Blue Motif Button-Front Shirt\nবাংলা: হালকা মোটিফের মিউটেড নীল বোতাম শার্ট\nBanglish: Halka Motif-er Muted Nil Botam Shirt\nSection: appearance_and_size\nVisual observations (not confirmed available variants):\nobserved_colors: muted blue\npattern: Subtle low-contrast front motifs\nsleeve: long\nneckline: collared\nfit: Unknown / নিশ্চিত নয় / nishchit noy\nAvailable sizes / সাইজ / size: Unknown / নিশ্চিত নয় / nishchit noy\nMeasurements / মাপ / map: unit: Unknown / নিশ্চিত নয় / nishchit noy; chest: Unknown / নিশ্চিত নয় / nishchit noy; shoulder: Unknown / নিশ্চিত নয় / nishchit noy; sleeve_length: Unknown / নিশ্চিত নয় / nishchit noy; length: Unknown / নিশ্চিত নয় / nishchit noy\nConfirmed available colors / পাওয়া যাবে এমন রং / available rong: Unknown / নিশ্চিত নয় / nishchit noy\nMaterial / কাপড় / kapor: Unknown / নিশ্চিত নয় / nishchit noy\nNotes:\nEnglish: No verified fabric composition, brand, size range or tailoring service is available from these images.\nবাংলা: ছবি থেকে কাপড়, ব্র্যান্ড, সাইজের তালিকা বা টেইলারিং সেবা নিশ্চিত করা যায় না।\nBanglish: Chhobi theke kapor, brand, size-er talika ba tailoring sheba nishchit kora jay na.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_008",
+        "source_product_number": 8,
+        "title": "Muted Blue Motif Button-Front Shirt",
+        "title_bn": "হালকা মোটিফের মিউটেড নীল বোতাম শার্ট",
+        "title_banglish": "Halka Motif-er Muted Nil Botam Shirt",
+        "category": "shirt",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/7",
+        "primary_image_path": "product Image/product8.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "appearance_and_size"
+      }
+    },
+    {
+      "id": "IMG_008:use_and_care:v1",
+      "page_content": "Product ID: IMG_008\nEnglish: Muted Blue Motif Button-Front Shirt\nবাংলা: হালকা মোটিফের মিউটেড নীল বোতাম শার্ট\nBanglish: Halka Motif-er Muted Nil Botam Shirt\nSection: use_and_care\nHow to use / কীভাবে ব্যবহার করবেন / kibhabe porbo:\nEnglish: Wear buttoned with trousers or jeans. Check chest, shoulder, sleeve and overall length for the intended fit.\nবাংলা: প্যান্ট বা জিনসের সঙ্গে বোতাম লাগিয়ে পরুন। কাঙ্ক্ষিত ফিটের জন্য বুক, কাঁধ, হাতা ও মোট লম্বা মিলিয়ে নিন।\nBanglish: Pant ba jeans-er shathe botam lagiye porun. Kankkhito fit-er jonno buk, kandh, hata o mot lomba miliye nin.\nCare / যত্ন / jotno:\nEnglish: Use the care label for washing and ironing settings; protect the decorated areas.\nবাংলা: ধোয়া ও ইস্ত্রির জন্য কেয়ার লেবেল মানুন; নকশার অংশ সুরক্ষিত রাখুন।\nBanglish: Dhowa o istrir jonno care label manun; nokshar ongsho shurokkhito rakhun.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_008",
+        "source_product_number": 8,
+        "title": "Muted Blue Motif Button-Front Shirt",
+        "title_bn": "হালকা মোটিফের মিউটেড নীল বোতাম শার্ট",
+        "title_banglish": "Halka Motif-er Muted Nil Botam Shirt",
+        "category": "shirt",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/7",
+        "primary_image_path": "product Image/product8.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "use_and_care"
+      }
+    },
+    {
+      "id": "IMG_008:purchase_and_custom_design:v1",
+      "page_content": "Product ID: IMG_008\nEnglish: Muted Blue Motif Button-Front Shirt\nবাংলা: হালকা মোটিফের মিউটেড নীল বোতাম শার্ট\nBanglish: Halka Motif-er Muted Nil Botam Shirt\nSection: purchase_and_custom_design\nPrice / দাম / dam: Unknown / নিশ্চিত নয় / nishchit noy\nDiscounted price / ছাড়ের দাম / charer dam: Unknown / নিশ্চিত নয় / nishchit noy\nCurrency / মুদ্রা / mudra: Unknown / নিশ্চিত নয় / nishchit noy\nAvailability / স্টক আছে কি / stock ache ki: needs_confirmation\nStock quantity / স্টকের সংখ্যা / stock shongkha: Unknown / নিশ্চিত নয় / nishchit noy\nPackage contents / প্যাকেজে কী আছে / package-e ki ache: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design / কাস্টম ডিজাইন / custom noksha available: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design status: needs_confirmation\nCustom design additional price: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design lead time (days): Unknown / নিশ্চিত নয় / nishchit noy\nEnglish: Unconfirmed commercial fields require seller confirmation. A design request is not an accepted custom order.\nবাংলা: অনিশ্চিত বাণিজ্যিক তথ্য বিক্রেতার কাছে নিশ্চিত করতে হবে। ডিজাইনের অনুরোধ মানেই কাস্টম অর্ডার গ্রহণ নয়।\nBanglish: Onishchit banijjik tottho bikretar kachhe nishchit korte hobe. Design-er onurodh manei custom order grohon noy.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_008",
+        "source_product_number": 8,
+        "title": "Muted Blue Motif Button-Front Shirt",
+        "title_bn": "হালকা মোটিফের মিউটেড নীল বোতাম শার্ট",
+        "title_banglish": "Halka Motif-er Muted Nil Botam Shirt",
+        "category": "shirt",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/7",
+        "primary_image_path": "product Image/product8.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "purchase_and_custom_design"
+      }
+    },
+    {
+      "id": "IMG_009:identity:v1",
+      "page_content": "Product ID: IMG_009\nEnglish: Cream Tunic with Maroon Decorative Yoke\nবাংলা: মেরুন নকশার ইয়োকের ক্রিম টিউনিক\nBanglish: Merun Nokshar Yoke-er Cream Tunic\nSection: identity\nCategory:\nEnglish: Tunic / kurti\nবাংলা: টিউনিক / কুর্তি\nBanglish: Tunic / kurti\nDescription:\nEnglish: Cream/off-white tunic with an open split-style neckline, a broad maroon ornamental chest/yoke panel and matching decorative sleeve bands. Small hanging accents appear below the chest panel.\nবাংলা: খোলা চেরা ধরনের গলা, বুকজুড়ে চওড়া মেরুন অলংকারধর্মী প্যানেল ও হাতায় মানানসই নকশার ব্যান্ডসহ ক্রিম বা অফ-হোয়াইট টিউনিক। বুকের প্যানেলের নিচে ছোট ঝুলন্ত অংশ দেখা যায়।\nBanglish: Khola chera dhoroner gola, bukjure chowra merun olongkardhormi panel o hatay manansoi nokshar band-shoho cream ba off-white tunic. Buker panel-er niche chhoto jhulonto ongsho dekha jay.\nAliases (en): cream kurti, maroon yoke tunic, off white kurti, decorative neckline top\nAliases (bn): ক্রিম কুর্তি, মেরুন গলার কুর্তি, অফ হোয়াইট টিউনিক\nAliases (banglish): cream kurti, merun golar kurti, off white tunic, maroon yoke top",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_009",
+        "source_product_number": 9,
+        "title": "Cream Tunic with Maroon Decorative Yoke",
+        "title_bn": "মেরুন নকশার ইয়োকের ক্রিম টিউনিক",
+        "title_banglish": "Merun Nokshar Yoke-er Cream Tunic",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/8",
+        "primary_image_path": "product Image/product9.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "identity"
+      }
+    },
+    {
+      "id": "IMG_009:appearance_and_size:v1",
+      "page_content": "Product ID: IMG_009\nEnglish: Cream Tunic with Maroon Decorative Yoke\nবাংলা: মেরুন নকশার ইয়োকের ক্রিম টিউনিক\nBanglish: Merun Nokshar Yoke-er Cream Tunic\nSection: appearance_and_size\nVisual observations (not confirmed available variants):\nobserved_colors: cream/off-white, maroon\npattern: Broad ornamental yoke and sleeve bands\nsleeve: three_quarter_appearing\nneckline: open_split_style\nfit: Unknown / নিশ্চিত নয় / nishchit noy\nAvailable sizes / সাইজ / size: Unknown / নিশ্চিত নয় / nishchit noy\nMeasurements / মাপ / map: unit: Unknown / নিশ্চিত নয় / nishchit noy; chest: Unknown / নিশ্চিত নয় / nishchit noy; length: Unknown / নিশ্চিত নয় / nishchit noy; waist: Unknown / নিশ্চিত নয় / nishchit noy\nConfirmed available colors / পাওয়া যাবে এমন রং / available rong: Unknown / নিশ্চিত নয় / nishchit noy\nMaterial / কাপড় / kapor: Unknown / নিশ্চিত নয় / nishchit noy\nNotes:\nEnglish: The photos do not verify whether the maroon decoration is printed, woven or embroidered.\nবাংলা: মেরুন নকশা প্রিন্ট, বোনা নাকি এমব্রয়ডারি তা ছবি থেকে নিশ্চিত নয়।\nBanglish: Merun noksha print, bona naki embroidery ta chhobi theke nishchit noy.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_009",
+        "source_product_number": 9,
+        "title": "Cream Tunic with Maroon Decorative Yoke",
+        "title_bn": "মেরুন নকশার ইয়োকের ক্রিম টিউনিক",
+        "title_banglish": "Merun Nokshar Yoke-er Cream Tunic",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/8",
+        "primary_image_path": "product Image/product9.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "appearance_and_size"
+      }
+    },
+    {
+      "id": "IMG_009:use_and_care:v1",
+      "page_content": "Product ID: IMG_009\nEnglish: Cream Tunic with Maroon Decorative Yoke\nবাংলা: মেরুন নকশার ইয়োকের ক্রিম টিউনিক\nBanglish: Merun Nokshar Yoke-er Cream Tunic\nSection: use_and_care\nHow to use / কীভাবে ব্যবহার করবেন / kibhabe porbo:\nEnglish: Pair with suitable trousers or leggings. Check neckline depth, chest and length before ordering.\nবাংলা: মানানসই প্যান্ট বা লেগিংসের সঙ্গে পরুন। অর্ডারের আগে গলার গভীরতা, বুক ও লম্বা মিলিয়ে নিন।\nBanglish: Manansoi pant ba leggings-er shathe porun. Order-er age golar gobhirota, buk o lomba miliye nin.\nCare / যত্ন / jotno:\nEnglish: Handle hanging accents gently and follow fabric-specific washing instructions.\nবাংলা: ঝুলন্ত অংশ আলতোভাবে ধরুন ও কাপড় অনুযায়ী ধোয়ার নির্দেশনা মানুন।\nBanglish: Jhulonto ongsho alto bhabe dhorun o kapor onujayi dhowar nirdeshona manun.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_009",
+        "source_product_number": 9,
+        "title": "Cream Tunic with Maroon Decorative Yoke",
+        "title_bn": "মেরুন নকশার ইয়োকের ক্রিম টিউনিক",
+        "title_banglish": "Merun Nokshar Yoke-er Cream Tunic",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/8",
+        "primary_image_path": "product Image/product9.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "use_and_care"
+      }
+    },
+    {
+      "id": "IMG_009:purchase_and_custom_design:v1",
+      "page_content": "Product ID: IMG_009\nEnglish: Cream Tunic with Maroon Decorative Yoke\nবাংলা: মেরুন নকশার ইয়োকের ক্রিম টিউনিক\nBanglish: Merun Nokshar Yoke-er Cream Tunic\nSection: purchase_and_custom_design\nPrice / দাম / dam: Unknown / নিশ্চিত নয় / nishchit noy\nDiscounted price / ছাড়ের দাম / charer dam: Unknown / নিশ্চিত নয় / nishchit noy\nCurrency / মুদ্রা / mudra: Unknown / নিশ্চিত নয় / nishchit noy\nAvailability / স্টক আছে কি / stock ache ki: needs_confirmation\nStock quantity / স্টকের সংখ্যা / stock shongkha: Unknown / নিশ্চিত নয় / nishchit noy\nPackage contents / প্যাকেজে কী আছে / package-e ki ache: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design / কাস্টম ডিজাইন / custom noksha available: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design status: needs_confirmation\nCustom design additional price: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design lead time (days): Unknown / নিশ্চিত নয় / nishchit noy\nEnglish: Unconfirmed commercial fields require seller confirmation. A design request is not an accepted custom order.\nবাংলা: অনিশ্চিত বাণিজ্যিক তথ্য বিক্রেতার কাছে নিশ্চিত করতে হবে। ডিজাইনের অনুরোধ মানেই কাস্টম অর্ডার গ্রহণ নয়।\nBanglish: Onishchit banijjik tottho bikretar kachhe nishchit korte hobe. Design-er onurodh manei custom order grohon noy.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_009",
+        "source_product_number": 9,
+        "title": "Cream Tunic with Maroon Decorative Yoke",
+        "title_bn": "মেরুন নকশার ইয়োকের ক্রিম টিউনিক",
+        "title_banglish": "Merun Nokshar Yoke-er Cream Tunic",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/8",
+        "primary_image_path": "product Image/product9.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "purchase_and_custom_design"
+      }
+    },
+    {
+      "id": "IMG_010:identity:v1",
+      "page_content": "Product ID: IMG_010\nEnglish: Muted Stripe Tie-Neck Short-Sleeve Tunic\nবাংলা: মিউটেড ডোরার ফিতা গলার ছোট হাতার টিউনিক\nBanglish: Muted Dorar Fita Golar Chhoto Hatar Tunic\nSection: identity\nCategory:\nEnglish: Tunic / kurti\nবাংলা: টিউনিক / কুর্তি\nBanglish: Tunic / kurti\nDescription:\nEnglish: Short-sleeve tunic with muted green/grey and dusty pink stripe bands, fine contrasting lines and neckline ties. Stripe direction and apparent color can vary with the folded or hanging view.\nবাংলা: মিউটেড সবুজ-ধূসর ও ডাস্টি গোলাপি ডোরার ব্যান্ড, সরু বিপরীত রেখা ও গলার ফিতাসহ ছোট হাতার টিউনিক। ভাঁজ বা ঝোলানো ছবির কারণে ডোরার দিক ও রং কিছুটা আলাদা দেখাতে পারে।\nBanglish: Muted shobuj-dhushor o dusty golapi dorar band, shoru biporit rekha o golar fita-shoho chhoto hatar tunic. Bhaj ba jholano chhobir karone dorar dik o rong kichhuta alada dekhate pare.\nAliases (en): striped kurti, tie neck tunic, pink green striped top, short sleeve striped tunic\nAliases (bn): ডোরা কুর্তি, ডোরাকাটা টপ, ফিতা গলার টিউনিক\nAliases (banglish): dora kurti, dorakata top, fita golar tunic, stripe kurti",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_010",
+        "source_product_number": 10,
+        "title": "Muted Stripe Tie-Neck Short-Sleeve Tunic",
+        "title_bn": "মিউটেড ডোরার ফিতা গলার ছোট হাতার টিউনিক",
+        "title_banglish": "Muted Dorar Fita Golar Chhoto Hatar Tunic",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/9",
+        "primary_image_path": "product Image/product10.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "identity"
+      }
+    },
+    {
+      "id": "IMG_010:appearance_and_size:v1",
+      "page_content": "Product ID: IMG_010\nEnglish: Muted Stripe Tie-Neck Short-Sleeve Tunic\nবাংলা: মিউটেড ডোরার ফিতা গলার ছোট হাতার টিউনিক\nBanglish: Muted Dorar Fita Golar Chhoto Hatar Tunic\nSection: appearance_and_size\nVisual observations (not confirmed available variants):\nobserved_colors: muted green/grey, dusty pink, off-white lines\npattern: Multicolor stripes\nsleeve: short\nneckline: tie_neck\nfit: Unknown / নিশ্চিত নয় / nishchit noy\nAvailable sizes / সাইজ / size: Unknown / নিশ্চিত নয় / nishchit noy\nMeasurements / মাপ / map: unit: Unknown / নিশ্চিত নয় / nishchit noy; chest: Unknown / নিশ্চিত নয় / nishchit noy; length: Unknown / নিশ্চিত নয় / nishchit noy; waist: Unknown / নিশ্চিত নয় / nishchit noy\nConfirmed available colors / পাওয়া যাবে এমন রং / available rong: Unknown / নিশ্চিত নয় / nishchit noy\nMaterial / কাপড় / kapor: Unknown / নিশ্চিত নয় / nishchit noy\nNotes:\nEnglish: Fiber content and weave are unknown; the visible stripes do not establish cotton or handloom production.\nবাংলা: সুতা ও বুনন অজানা; ডোরা দেখে কটন বা তাঁতের তৈরি দাবি করা যাবে না।\nBanglish: Shuta o bunon ojana; dora dekhe cotton ba tater toiri dabi kora jabe na.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_010",
+        "source_product_number": 10,
+        "title": "Muted Stripe Tie-Neck Short-Sleeve Tunic",
+        "title_bn": "মিউটেড ডোরার ফিতা গলার ছোট হাতার টিউনিক",
+        "title_banglish": "Muted Dorar Fita Golar Chhoto Hatar Tunic",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/9",
+        "primary_image_path": "product Image/product10.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "appearance_and_size"
+      }
+    },
+    {
+      "id": "IMG_010:use_and_care:v1",
+      "page_content": "Product ID: IMG_010\nEnglish: Muted Stripe Tie-Neck Short-Sleeve Tunic\nবাংলা: মিউটেড ডোরার ফিতা গলার ছোট হাতার টিউনিক\nBanglish: Muted Dorar Fita Golar Chhoto Hatar Tunic\nSection: use_and_care\nHow to use / কীভাবে ব্যবহার করবেন / kibhabe porbo:\nEnglish: Wear with plain trousers and secure neckline ties comfortably; verify chest and length measurements.\nবাংলা: সাধারণ রঙের প্যান্টের সঙ্গে পরুন ও গলার ফিতা আরামমতো বাঁধুন; বুক ও লম্বা যাচাই করুন।\nBanglish: Shadharon ronger pant-er shathe porun o golar fita arammoto badhun; buk o lomba jachai korun.\nCare / যত্ন / jotno:\nEnglish: Follow the label and avoid pulling the neckline ties during washing or drying.\nবাংলা: লেবেল মানুন ও ধোয়া বা শুকানোর সময় গলার ফিতায় টান দেবেন না।\nBanglish: Label manun o dhowar ba shukanor shomoy golar fitay tan deben na.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_010",
+        "source_product_number": 10,
+        "title": "Muted Stripe Tie-Neck Short-Sleeve Tunic",
+        "title_bn": "মিউটেড ডোরার ফিতা গলার ছোট হাতার টিউনিক",
+        "title_banglish": "Muted Dorar Fita Golar Chhoto Hatar Tunic",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/9",
+        "primary_image_path": "product Image/product10.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "use_and_care"
+      }
+    },
+    {
+      "id": "IMG_010:purchase_and_custom_design:v1",
+      "page_content": "Product ID: IMG_010\nEnglish: Muted Stripe Tie-Neck Short-Sleeve Tunic\nবাংলা: মিউটেড ডোরার ফিতা গলার ছোট হাতার টিউনিক\nBanglish: Muted Dorar Fita Golar Chhoto Hatar Tunic\nSection: purchase_and_custom_design\nPrice / দাম / dam: Unknown / নিশ্চিত নয় / nishchit noy\nDiscounted price / ছাড়ের দাম / charer dam: Unknown / নিশ্চিত নয় / nishchit noy\nCurrency / মুদ্রা / mudra: Unknown / নিশ্চিত নয় / nishchit noy\nAvailability / স্টক আছে কি / stock ache ki: needs_confirmation\nStock quantity / স্টকের সংখ্যা / stock shongkha: Unknown / নিশ্চিত নয় / nishchit noy\nPackage contents / প্যাকেজে কী আছে / package-e ki ache: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design / কাস্টম ডিজাইন / custom noksha available: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design status: needs_confirmation\nCustom design additional price: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design lead time (days): Unknown / নিশ্চিত নয় / nishchit noy\nEnglish: Unconfirmed commercial fields require seller confirmation. A design request is not an accepted custom order.\nবাংলা: অনিশ্চিত বাণিজ্যিক তথ্য বিক্রেতার কাছে নিশ্চিত করতে হবে। ডিজাইনের অনুরোধ মানেই কাস্টম অর্ডার গ্রহণ নয়।\nBanglish: Onishchit banijjik tottho bikretar kachhe nishchit korte hobe. Design-er onurodh manei custom order grohon noy.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_010",
+        "source_product_number": 10,
+        "title": "Muted Stripe Tie-Neck Short-Sleeve Tunic",
+        "title_bn": "মিউটেড ডোরার ফিতা গলার ছোট হাতার টিউনিক",
+        "title_banglish": "Muted Dorar Fita Golar Chhoto Hatar Tunic",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/9",
+        "primary_image_path": "product Image/product10.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "purchase_and_custom_design"
+      }
+    },
+    {
+      "id": "IMG_011:identity:v1",
+      "page_content": "Product ID: IMG_011\nEnglish: Teal Scenic-Panel Tunic with Blue Sleeve Borders\nবাংলা: নীল হাতার পাড় ও দৃশ্যপ্যানেলের টিল টিউনিক\nBanglish: Nil Hatar Par o Drishsho Panel-er Teal Tunic\nSection: identity\nCategory:\nEnglish: Tunic / kurti\nবাংলা: টিউনিক / কুর্তি\nBanglish: Tunic / kurti\nDescription:\nEnglish: Teal-green tunic with a notched neckline and several colorful rectangular motifs across the front, including floral and scene-like elements. Blue decorative bands and small light motifs appear near the sleeve ends.\nবাংলা: খাঁজকাটা গলা ও সামনে ফুল ও দৃশ্যধর্মী উপাদানের কয়েকটি রঙিন আয়তাকার মোটিফসহ টিল-সবুজ টিউনিক। হাতার শেষের কাছে নীল নকশার ব্যান্ড ও ছোট হালকা মোটিফ দেখা যায়।\nBanglish: Khajkata gola o shamne ful o drishshodhormi upadaner koyekti rongin ayotakar motif-shoho teal-shobuj tunic. Hatar shesher kachhe nil nokshar band o chhoto halka motif dekha jay.\nAliases (en): teal kurti, scenic panel tunic, blue sleeve border top, colorful panel kurti\nAliases (bn): টিল কুর্তি, নীল পাড়ের টপ, রঙিন প্যানেলের টিউনিক\nAliases (banglish): teal kurti, til kurti, rongin panel tunic, nil parer top",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_011",
+        "source_product_number": 11,
+        "title": "Teal Scenic-Panel Tunic with Blue Sleeve Borders",
+        "title_bn": "নীল হাতার পাড় ও দৃশ্যপ্যানেলের টিল টিউনিক",
+        "title_banglish": "Nil Hatar Par o Drishsho Panel-er Teal Tunic",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/10",
+        "primary_image_path": "product Image/product11.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "identity"
+      }
+    },
+    {
+      "id": "IMG_011:appearance_and_size:v1",
+      "page_content": "Product ID: IMG_011\nEnglish: Teal Scenic-Panel Tunic with Blue Sleeve Borders\nবাংলা: নীল হাতার পাড় ও দৃশ্যপ্যানেলের টিল টিউনিক\nBanglish: Nil Hatar Par o Drishsho Panel-er Teal Tunic\nSection: appearance_and_size\nVisual observations (not confirmed available variants):\nobserved_colors: teal-green, blue, green, pink, multicolor accents\npattern: Rectangular scenic/floral front panels and blue sleeve borders\nsleeve: three_quarter_appearing\nneckline: notched\nfit: Unknown / নিশ্চিত নয় / nishchit noy\nAvailable sizes / সাইজ / size: Unknown / নিশ্চিত নয় / nishchit noy\nMeasurements / মাপ / map: unit: Unknown / নিশ্চিত নয় / nishchit noy; chest: Unknown / নিশ্চিত নয় / nishchit noy; length: Unknown / নিশ্চিত নয় / nishchit noy; waist: Unknown / নিশ্চিত নয় / nishchit noy\nConfirmed available colors / পাওয়া যাবে এমন রং / available rong: Unknown / নিশ্চিত নয় / nishchit noy\nMaterial / কাপড় / kapor: Unknown / নিশ্চিত নয় / nishchit noy\nNotes:\nEnglish: Panel appearance does not prove separate patchwork pieces, hand painting or embroidery.\nবাংলা: প্যানেল দেখে আলাদা প্যাচওয়ার্ক, হ্যান্ড পেইন্ট বা এমব্রয়ডারি নিশ্চিত বলা যায় না।\nBanglish: Panel dekhe alada patchwork, hand paint ba embroidery nishchit bola jay na.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_011",
+        "source_product_number": 11,
+        "title": "Teal Scenic-Panel Tunic with Blue Sleeve Borders",
+        "title_bn": "নীল হাতার পাড় ও দৃশ্যপ্যানেলের টিল টিউনিক",
+        "title_banglish": "Nil Hatar Par o Drishsho Panel-er Teal Tunic",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/10",
+        "primary_image_path": "product Image/product11.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "appearance_and_size"
+      }
+    },
+    {
+      "id": "IMG_011:use_and_care:v1",
+      "page_content": "Product ID: IMG_011\nEnglish: Teal Scenic-Panel Tunic with Blue Sleeve Borders\nবাংলা: নীল হাতার পাড় ও দৃশ্যপ্যানেলের টিল টিউনিক\nBanglish: Nil Hatar Par o Drishsho Panel-er Teal Tunic\nSection: use_and_care\nHow to use / কীভাবে ব্যবহার করবেন / kibhabe porbo:\nEnglish: Pair with plain trousers to highlight the front panels; confirm chest, sleeve and garment length.\nবাংলা: সামনের নকশা ফুটিয়ে তুলতে সাধারণ প্যান্টের সঙ্গে পরুন; বুক, হাতা ও পোশাকের লম্বা মিলিয়ে নিন।\nBanglish: Shamner noksha futiye tulte shadharon pant-er shathe porun; buk, hata o poshaker lomba miliye nin.\nCare / যত্ন / jotno:\nEnglish: Check cleaning instructions and keep direct iron heat away from the decorative panels and sleeve details.\nবাংলা: পরিষ্কারের নির্দেশনা দেখুন ও প্যানেল ও হাতার নকশায় সরাসরি ইস্ত্রির তাপ দেবেন না।\nBanglish: Porishkarer nirdeshona dekhun o panel o hatar nokshay shorashori istrir tap deben na.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_011",
+        "source_product_number": 11,
+        "title": "Teal Scenic-Panel Tunic with Blue Sleeve Borders",
+        "title_bn": "নীল হাতার পাড় ও দৃশ্যপ্যানেলের টিল টিউনিক",
+        "title_banglish": "Nil Hatar Par o Drishsho Panel-er Teal Tunic",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/10",
+        "primary_image_path": "product Image/product11.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "use_and_care"
+      }
+    },
+    {
+      "id": "IMG_011:purchase_and_custom_design:v1",
+      "page_content": "Product ID: IMG_011\nEnglish: Teal Scenic-Panel Tunic with Blue Sleeve Borders\nবাংলা: নীল হাতার পাড় ও দৃশ্যপ্যানেলের টিল টিউনিক\nBanglish: Nil Hatar Par o Drishsho Panel-er Teal Tunic\nSection: purchase_and_custom_design\nPrice / দাম / dam: Unknown / নিশ্চিত নয় / nishchit noy\nDiscounted price / ছাড়ের দাম / charer dam: Unknown / নিশ্চিত নয় / nishchit noy\nCurrency / মুদ্রা / mudra: Unknown / নিশ্চিত নয় / nishchit noy\nAvailability / স্টক আছে কি / stock ache ki: needs_confirmation\nStock quantity / স্টকের সংখ্যা / stock shongkha: Unknown / নিশ্চিত নয় / nishchit noy\nPackage contents / প্যাকেজে কী আছে / package-e ki ache: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design / কাস্টম ডিজাইন / custom noksha available: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design status: needs_confirmation\nCustom design additional price: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design lead time (days): Unknown / নিশ্চিত নয় / nishchit noy\nEnglish: Unconfirmed commercial fields require seller confirmation. A design request is not an accepted custom order.\nবাংলা: অনিশ্চিত বাণিজ্যিক তথ্য বিক্রেতার কাছে নিশ্চিত করতে হবে। ডিজাইনের অনুরোধ মানেই কাস্টম অর্ডার গ্রহণ নয়।\nBanglish: Onishchit banijjik tottho bikretar kachhe nishchit korte hobe. Design-er onurodh manei custom order grohon noy.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_011",
+        "source_product_number": 11,
+        "title": "Teal Scenic-Panel Tunic with Blue Sleeve Borders",
+        "title_bn": "নীল হাতার পাড় ও দৃশ্যপ্যানেলের টিল টিউনিক",
+        "title_banglish": "Nil Hatar Par o Drishsho Panel-er Teal Tunic",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/10",
+        "primary_image_path": "product Image/product11.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "purchase_and_custom_design"
+      }
+    },
+    {
+      "id": "IMG_012:identity:v1",
+      "page_content": "Product ID: IMG_012\nEnglish: Light Aqua Decorative-Yoke Garment — Full View Needed\nবাংলা: নকশার ইয়োকের হালকা অ্যাকোয়া পোশাক — পূর্ণ ছবি প্রয়োজন\nBanglish: Nokshar Yoke-er Halka Aqua Poshak — Purno Chhobi Proyojon\nSection: identity\nCategory:\nEnglish: Garment; possibly tunic or dress\nবাংলা: পোশাক; সম্ভবত টিউনিক বা ড্রেস\nBanglish: Poshak; shombhoboto tunic ba dress\nDescription:\nEnglish: Cropped detail views show a light aqua garment with a dark geometric neckline/yoke border, small hanging bead/shell-like accents and outlined floral motifs. Full silhouette, sleeve length and whether it is a tunic or dress cannot be established.\nবাংলা: কাছের ছবিতে হালকা অ্যাকোয়া পোশাকের গলায় গাঢ় জ্যামিতিক পাড়, পুঁতি বা শামুকের মতো ছোট ঝুলন্ত অংশ ও রেখার ফুলের মোটিফ দেখা যায়। পুরো কাট, হাতার লম্বা ও টিউনিক নাকি ড্রেস তা নিশ্চিত করা যায় না।\nBanglish: Kachher chhobite halka aqua poshaker golay garho jyamitik par, puti ba shamuker moto chhoto jhulonto ongsho o rekhar fuler motif dekha jay. Puro cut, hatar lomba o tunic naki dress ta nishchit kora jay na.\nAliases (en): light aqua garment, aqua decorative yoke, outlined floral motif, hanging accent neckline\nAliases (bn): অ্যাকোয়া পোশাক, হালকা নীল পোশাক, ঝুলন্ত নকশার গলা, রেখার ফুলের মোটিফ\nAliases (banglish): aqua poshak, halka nil poshak, jhulonto nokshar gola, fuler motif",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_012",
+        "source_product_number": 12,
+        "title": "Light Aqua Decorative-Yoke Garment — Full View Needed",
+        "title_bn": "নকশার ইয়োকের হালকা অ্যাকোয়া পোশাক — পূর্ণ ছবি প্রয়োজন",
+        "title_banglish": "Nokshar Yoke-er Halka Aqua Poshak — Purno Chhobi Proyojon",
+        "category": "garment_type_unconfirmed",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/11",
+        "primary_image_path": "product Image/product12.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "medium",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "identity"
+      }
+    },
+    {
+      "id": "IMG_012:appearance_and_size:v1",
+      "page_content": "Product ID: IMG_012\nEnglish: Light Aqua Decorative-Yoke Garment — Full View Needed\nবাংলা: নকশার ইয়োকের হালকা অ্যাকোয়া পোশাক — পূর্ণ ছবি প্রয়োজন\nBanglish: Nokshar Yoke-er Halka Aqua Poshak — Purno Chhobi Proyojon\nSection: appearance_and_size\nVisual observations (not confirmed available variants):\nobserved_colors: light aqua, dark border, light hanging accents\npattern: Geometric yoke border and outlined floral motifs\nsleeve: Unknown / নিশ্চিত নয় / nishchit noy\nneckline: angular_decorative_yoke_observed\nfit: Unknown / নিশ্চিত নয় / nishchit noy\nAvailable sizes / সাইজ / size: Unknown / নিশ্চিত নয় / nishchit noy\nMeasurements / মাপ / map: unit: Unknown / নিশ্চিত নয় / nishchit noy; chest: Unknown / নিশ্চিত নয় / nishchit noy; length: Unknown / নিশ্চিত নয় / nishchit noy; waist: Unknown / নিশ্চিত নয় / nishchit noy\nConfirmed available colors / পাওয়া যাবে এমন রং / available rong: Unknown / নিশ্চিত নয় / nishchit noy\nMaterial / কাপড় / kapor: Unknown / নিশ্চিত নয় / nishchit noy\nNotes:\nEnglish: Only cropped views exist. Do not claim sleeveless construction, a full-length dress, real shell trim or a specific material.\nবাংলা: শুধু আংশিক ছবি আছে। হাতাবিহীন কাট, পুরো লম্বা ড্রেস, আসল শামুকের পাড় বা নির্দিষ্ট কাপড় দাবি করবেন না।\nBanglish: Shudhu angshik chhobi ache. Hatabihin cut, puro lomba dress, ashol shamuker par ba nirdishto kapor dabi korben na.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_012",
+        "source_product_number": 12,
+        "title": "Light Aqua Decorative-Yoke Garment — Full View Needed",
+        "title_bn": "নকশার ইয়োকের হালকা অ্যাকোয়া পোশাক — পূর্ণ ছবি প্রয়োজন",
+        "title_banglish": "Nokshar Yoke-er Halka Aqua Poshak — Purno Chhobi Proyojon",
+        "category": "garment_type_unconfirmed",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/11",
+        "primary_image_path": "product Image/product12.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "medium",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "appearance_and_size"
+      }
+    },
+    {
+      "id": "IMG_012:use_and_care:v1",
+      "page_content": "Product ID: IMG_012\nEnglish: Light Aqua Decorative-Yoke Garment — Full View Needed\nবাংলা: নকশার ইয়োকের হালকা অ্যাকোয়া পোশাক — পূর্ণ ছবি প্রয়োজন\nBanglish: Nokshar Yoke-er Halka Aqua Poshak — Purno Chhobi Proyojon\nSection: use_and_care\nHow to use / কীভাবে ব্যবহার করবেন / kibhabe porbo:\nEnglish: Request a full-garment photo and measurements before deciding how to wear or layer it. Handle hanging accents gently.\nবাংলা: কীভাবে পরবেন বা লেয়ার করবেন ঠিক করার আগে পুরো পোশাকের ছবি ও মাপ নিন। ঝুলন্ত অংশ আলতোভাবে ধরুন।\nBanglish: Kibhabe porben ba layer korben thik korar age puro poshaker chhobi o map nin. Jhulonto ongsho alto bhabe dhorun.\nCare / যত্ন / jotno:\nEnglish: Follow the seller's instructions; do not assume the hanging accents are real shells or suitable for machine washing.\nবাংলা: বিক্রেতার নির্দেশনা মানুন; ঝুলন্ত অংশ আসল শামুক বা মেশিনে ধোয়ার উপযুক্ত ধরে নেবেন না।\nBanglish: Bikretar nirdeshona manun; jhulonto ongsho ashol shamuk ba machine-e dhowar upajukto dhore neben na.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_012",
+        "source_product_number": 12,
+        "title": "Light Aqua Decorative-Yoke Garment — Full View Needed",
+        "title_bn": "নকশার ইয়োকের হালকা অ্যাকোয়া পোশাক — পূর্ণ ছবি প্রয়োজন",
+        "title_banglish": "Nokshar Yoke-er Halka Aqua Poshak — Purno Chhobi Proyojon",
+        "category": "garment_type_unconfirmed",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/11",
+        "primary_image_path": "product Image/product12.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "medium",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "use_and_care"
+      }
+    },
+    {
+      "id": "IMG_012:purchase_and_custom_design:v1",
+      "page_content": "Product ID: IMG_012\nEnglish: Light Aqua Decorative-Yoke Garment — Full View Needed\nবাংলা: নকশার ইয়োকের হালকা অ্যাকোয়া পোশাক — পূর্ণ ছবি প্রয়োজন\nBanglish: Nokshar Yoke-er Halka Aqua Poshak — Purno Chhobi Proyojon\nSection: purchase_and_custom_design\nPrice / দাম / dam: Unknown / নিশ্চিত নয় / nishchit noy\nDiscounted price / ছাড়ের দাম / charer dam: Unknown / নিশ্চিত নয় / nishchit noy\nCurrency / মুদ্রা / mudra: Unknown / নিশ্চিত নয় / nishchit noy\nAvailability / স্টক আছে কি / stock ache ki: needs_confirmation\nStock quantity / স্টকের সংখ্যা / stock shongkha: Unknown / নিশ্চিত নয় / nishchit noy\nPackage contents / প্যাকেজে কী আছে / package-e ki ache: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design / কাস্টম ডিজাইন / custom noksha available: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design status: needs_confirmation\nCustom design additional price: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design lead time (days): Unknown / নিশ্চিত নয় / nishchit noy\nEnglish: Unconfirmed commercial fields require seller confirmation. A design request is not an accepted custom order.\nবাংলা: অনিশ্চিত বাণিজ্যিক তথ্য বিক্রেতার কাছে নিশ্চিত করতে হবে। ডিজাইনের অনুরোধ মানেই কাস্টম অর্ডার গ্রহণ নয়।\nBanglish: Onishchit banijjik tottho bikretar kachhe nishchit korte hobe. Design-er onurodh manei custom order grohon noy.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_012",
+        "source_product_number": 12,
+        "title": "Light Aqua Decorative-Yoke Garment — Full View Needed",
+        "title_bn": "নকশার ইয়োকের হালকা অ্যাকোয়া পোশাক — পূর্ণ ছবি প্রয়োজন",
+        "title_banglish": "Nokshar Yoke-er Halka Aqua Poshak — Purno Chhobi Proyojon",
+        "category": "garment_type_unconfirmed",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/11",
+        "primary_image_path": "product Image/product12.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "medium",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "purchase_and_custom_design"
+      }
+    },
+    {
+      "id": "IMG_013:identity:v1",
+      "page_content": "Product ID: IMG_013\nEnglish: Rust-Orange Ganesha-Motif Panel Tunic\nবাংলা: গণেশ মোটিফের প্যানেলের মরচে-কমলা টিউনিক\nBanglish: Gonesh Motif Panel-er Morche-Komola Tunic\nSection: identity\nCategory:\nEnglish: Tunic / short kurti\nবাংলা: টিউনিক / ছোট কুর্তি\nBanglish: Tunic / chhoto kurti\nDescription:\nEnglish: Rust-orange short-sleeve tunic with neckline ties and a dark rectangular front panel containing a stylized Ganesha line-art motif. Small multicolor hanging accents run along the lower edge of the panel.\nবাংলা: গলার ফিতা ও সামনে গাঢ় আয়তাকার প্যানেলে শৈল্পিক গণেশের রেখাচিত্রসহ মরচে-কমলা ছোট হাতার টিউনিক। প্যানেলের নিচের প্রান্তে ছোট বহুরঙা ঝুলন্ত অংশ আছে।\nBanglish: Golar fita o shamne garho ayotakar panel-e shoilpik Gonesher rekhachitro-shoho morche-komola chhoto hatar tunic. Panel-er nicher prante chhoto bohuronga jhulonto ongsho ache.\nAliases (en): orange kurti, rust orange tunic, Ganesha motif top, Ganesh panel kurti\nAliases (bn): কমলা কুর্তি, গণেশ মোটিফের টপ, মরচে কমলা টিউনিক\nAliases (banglish): komola kurti, orange kurti, gonesh top, ganesh kurti, rust tunic",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_013",
+        "source_product_number": 13,
+        "title": "Rust-Orange Ganesha-Motif Panel Tunic",
+        "title_bn": "গণেশ মোটিফের প্যানেলের মরচে-কমলা টিউনিক",
+        "title_banglish": "Gonesh Motif Panel-er Morche-Komola Tunic",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/12",
+        "primary_image_path": "product Image/product13.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "identity"
+      }
+    },
+    {
+      "id": "IMG_013:appearance_and_size:v1",
+      "page_content": "Product ID: IMG_013\nEnglish: Rust-Orange Ganesha-Motif Panel Tunic\nবাংলা: গণেশ মোটিফের প্যানেলের মরচে-কমলা টিউনিক\nBanglish: Gonesh Motif Panel-er Morche-Komola Tunic\nSection: appearance_and_size\nVisual observations (not confirmed available variants):\nobserved_colors: rust-orange, dark maroon/black panel, light line art, multicolor accents\npattern: Stylized Ganesha motif within rectangular panel\nsleeve: short\nneckline: round_with_ties\nfit: Unknown / নিশ্চিত নয় / nishchit noy\nAvailable sizes / সাইজ / size: Unknown / নিশ্চিত নয় / nishchit noy\nMeasurements / মাপ / map: unit: Unknown / নিশ্চিত নয় / nishchit noy; chest: Unknown / নিশ্চিত নয় / nishchit noy; length: Unknown / নিশ্চিত নয় / nishchit noy; waist: Unknown / নিশ্চিত নয় / nishchit noy\nConfirmed available colors / পাওয়া যাবে এমন রং / available rong: Unknown / নিশ্চিত নয় / nishchit noy\nMaterial / কাপড় / kapor: Unknown / নিশ্চিত নয় / nishchit noy\nNotes:\nEnglish: Motif identification is visual; no religious-use claim, hand-painted claim or material specification is established.\nবাংলা: মোটিফ চিহ্নিত করা হয়েছে ছবি দেখে; ধর্মীয় ব্যবহারের দাবি, হ্যান্ড পেইন্ট বা কাপড়ের তথ্য নিশ্চিত নয়।\nBanglish: Motif chihnito kora hoyeche chhobi dekhe; dhormiyo byaboharer dabi, hand paint ba kaporer tottho nishchit noy.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_013",
+        "source_product_number": 13,
+        "title": "Rust-Orange Ganesha-Motif Panel Tunic",
+        "title_bn": "গণেশ মোটিফের প্যানেলের মরচে-কমলা টিউনিক",
+        "title_banglish": "Gonesh Motif Panel-er Morche-Komola Tunic",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/12",
+        "primary_image_path": "product Image/product13.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "appearance_and_size"
+      }
+    },
+    {
+      "id": "IMG_013:use_and_care:v1",
+      "page_content": "Product ID: IMG_013\nEnglish: Rust-Orange Ganesha-Motif Panel Tunic\nবাংলা: গণেশ মোটিফের প্যানেলের মরচে-কমলা টিউনিক\nBanglish: Gonesh Motif Panel-er Morche-Komola Tunic\nSection: use_and_care\nHow to use / কীভাবে ব্যবহার করবেন / kibhabe porbo:\nEnglish: Wear with plain trousers and secure the neckline ties comfortably. Choose the motif according to personal preference; confirm garment measurements.\nবাংলা: সাধারণ প্যান্টের সঙ্গে পরুন ও গলার ফিতা আরামমতো বাঁধুন। ব্যক্তিগত পছন্দ অনুযায়ী মোটিফ বেছে নিন; পোশাকের মাপ নিশ্চিত করুন।\nBanglish: Shadharon pant-er shathe porun o golar fita arammoto badhun. Byaktigoto pochhondo onujayi motif bechhe nin; poshaker map nishchit korun.\nCare / যত্ন / jotno:\nEnglish: Avoid snagging the hanging accents and follow label instructions for the decorated panel.\nবাংলা: ঝুলন্ত অংশে টান লাগানো এড়িয়ে চলুন ও প্যানেলের জন্য লেবেলের নির্দেশনা মানুন।\nBanglish: Jhulonto ongshe tan lagano eriye cholun o panel-er jonno label-er nirdeshona manun.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_013",
+        "source_product_number": 13,
+        "title": "Rust-Orange Ganesha-Motif Panel Tunic",
+        "title_bn": "গণেশ মোটিফের প্যানেলের মরচে-কমলা টিউনিক",
+        "title_banglish": "Gonesh Motif Panel-er Morche-Komola Tunic",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/12",
+        "primary_image_path": "product Image/product13.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "use_and_care"
+      }
+    },
+    {
+      "id": "IMG_013:purchase_and_custom_design:v1",
+      "page_content": "Product ID: IMG_013\nEnglish: Rust-Orange Ganesha-Motif Panel Tunic\nবাংলা: গণেশ মোটিফের প্যানেলের মরচে-কমলা টিউনিক\nBanglish: Gonesh Motif Panel-er Morche-Komola Tunic\nSection: purchase_and_custom_design\nPrice / দাম / dam: Unknown / নিশ্চিত নয় / nishchit noy\nDiscounted price / ছাড়ের দাম / charer dam: Unknown / নিশ্চিত নয় / nishchit noy\nCurrency / মুদ্রা / mudra: Unknown / নিশ্চিত নয় / nishchit noy\nAvailability / স্টক আছে কি / stock ache ki: needs_confirmation\nStock quantity / স্টকের সংখ্যা / stock shongkha: Unknown / নিশ্চিত নয় / nishchit noy\nPackage contents / প্যাকেজে কী আছে / package-e ki ache: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design / কাস্টম ডিজাইন / custom noksha available: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design status: needs_confirmation\nCustom design additional price: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design lead time (days): Unknown / নিশ্চিত নয় / nishchit noy\nEnglish: Unconfirmed commercial fields require seller confirmation. A design request is not an accepted custom order.\nবাংলা: অনিশ্চিত বাণিজ্যিক তথ্য বিক্রেতার কাছে নিশ্চিত করতে হবে। ডিজাইনের অনুরোধ মানেই কাস্টম অর্ডার গ্রহণ নয়।\nBanglish: Onishchit banijjik tottho bikretar kachhe nishchit korte hobe. Design-er onurodh manei custom order grohon noy.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_013",
+        "source_product_number": 13,
+        "title": "Rust-Orange Ganesha-Motif Panel Tunic",
+        "title_bn": "গণেশ মোটিফের প্যানেলের মরচে-কমলা টিউনিক",
+        "title_banglish": "Gonesh Motif Panel-er Morche-Komola Tunic",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/12",
+        "primary_image_path": "product Image/product13.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "purchase_and_custom_design"
+      }
+    },
+    {
+      "id": "IMG_014:identity:v1",
+      "page_content": "Product ID: IMG_014\nEnglish: Black Tunic with Pink-Green Ornamental Panel\nবাংলা: গোলাপি-সবুজ অলংকার প্যানেলের কালো টিউনিক\nBanglish: Golapi-Shobuj Olongkar Panel-er Kalo Tunic\nSection: identity\nCategory:\nEnglish: Tunic / kurti\nবাংলা: টিউনিক / কুর্তি\nBanglish: Tunic / kurti\nDescription:\nEnglish: Black tunic with a bright pink rectangular front panel, a green ornamental central shape and a teal hanging tassel. The neckline and sleeve edges have small contrast details; the styled view includes jeans.\nবাংলা: উজ্জ্বল গোলাপি আয়তাকার সামনের প্যানেল, মাঝখানে সবুজ অলংকারধর্মী আকার ও টিল ঝুলন্ত ট্যাসেলের কালো টিউনিক। গলা ও হাতার প্রান্তে ছোট বিপরীত রঙের অংশ আছে; পরা অবস্থার ছবিতে জিনস আছে।\nBanglish: Ujjol golapi ayotakar shamner panel, majhkhane shobuj olongkardhormi akar o teal jhulonto tassel-er kalo tunic. Gola o hatar prante chhoto biporit ronger ongsho ache; pora obosthar chhobite jeans ache.\nAliases (en): black kurti, pink green panel tunic, teal tassel top, black ornamental tunic\nAliases (bn): কালো কুর্তি, গোলাপি সবুজ নকশা, ট্যাসেলের টপ\nAliases (banglish): kalo kurti, kalo top, black kurti, golapi shobuj panel, tassel top",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_014",
+        "source_product_number": 14,
+        "title": "Black Tunic with Pink-Green Ornamental Panel",
+        "title_bn": "গোলাপি-সবুজ অলংকার প্যানেলের কালো টিউনিক",
+        "title_banglish": "Golapi-Shobuj Olongkar Panel-er Kalo Tunic",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/13",
+        "primary_image_path": "product Image/product14.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "identity"
+      }
+    },
+    {
+      "id": "IMG_014:appearance_and_size:v1",
+      "page_content": "Product ID: IMG_014\nEnglish: Black Tunic with Pink-Green Ornamental Panel\nবাংলা: গোলাপি-সবুজ অলংকার প্যানেলের কালো টিউনিক\nBanglish: Golapi-Shobuj Olongkar Panel-er Kalo Tunic\nSection: appearance_and_size\nVisual observations (not confirmed available variants):\nobserved_colors: black, pink, green, teal\npattern: Pink rectangular panel with green ornament and teal tassel\nsleeve: three_quarter_appearing\nneckline: split_with_contrast_details\nfit: Unknown / নিশ্চিত নয় / nishchit noy\nAvailable sizes / সাইজ / size: Unknown / নিশ্চিত নয় / nishchit noy\nMeasurements / মাপ / map: unit: Unknown / নিশ্চিত নয় / nishchit noy; chest: Unknown / নিশ্চিত নয় / nishchit noy; length: Unknown / নিশ্চিত নয় / nishchit noy; waist: Unknown / নিশ্চিত নয় / nishchit noy\nConfirmed available colors / পাওয়া যাবে এমন রং / available rong: Unknown / নিশ্চিত নয় / nishchit noy\nMaterial / কাপড় / kapor: Unknown / নিশ্চিত নয় / nishchit noy\nNotes:\nEnglish: Jeans and accessories in the styling photo are not confirmed inclusions. No print or embroidery method is verified.\nবাংলা: ছবির জিনস ও সাজসজ্জার উপকরণ অন্তর্ভুক্ত কি না নিশ্চিত নয়। প্রিন্ট বা এমব্রয়ডারির পদ্ধতিও যাচাই করা হয়নি।\nBanglish: Chhobir jeans o shajshojjar upokoron ontorbhukto ki na nishchit noy. Print ba embroidery-r poddhoti-o jachai kora hoyni.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_014",
+        "source_product_number": 14,
+        "title": "Black Tunic with Pink-Green Ornamental Panel",
+        "title_bn": "গোলাপি-সবুজ অলংকার প্যানেলের কালো টিউনিক",
+        "title_banglish": "Golapi-Shobuj Olongkar Panel-er Kalo Tunic",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/13",
+        "primary_image_path": "product Image/product14.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "appearance_and_size"
+      }
+    },
+    {
+      "id": "IMG_014:use_and_care:v1",
+      "page_content": "Product ID: IMG_014\nEnglish: Black Tunic with Pink-Green Ornamental Panel\nবাংলা: গোলাপি-সবুজ অলংকার প্যানেলের কালো টিউনিক\nBanglish: Golapi-Shobuj Olongkar Panel-er Kalo Tunic\nSection: use_and_care\nHow to use / কীভাবে ব্যবহার করবেন / kibhabe porbo:\nEnglish: Pair with jeans or plain trousers; keep the tassel clear of items that could snag it. Confirm measurements before ordering.\nবাংলা: জিনস বা সাধারণ প্যান্টের সঙ্গে পরুন; ট্যাসেল আটকে যেতে পারে এমন জিনিস থেকে দূরে রাখুন। অর্ডারের আগে মাপ নিশ্চিত করুন।\nBanglish: Jeans ba shadharon pant-er shathe porun; tassel atke jete pare emon jinis theke dure rakhun. Order-er age map nishchit korun.\nCare / যত্ন / jotno:\nEnglish: Follow the care label and avoid pulling the tassel or applying direct iron heat to the panel.\nবাংলা: কেয়ার লেবেল মানুন; ট্যাসেলে টান বা প্যানেলে সরাসরি ইস্ত্রির তাপ দেবেন না।\nBanglish: Care label manun; tassel-e tan ba panel-e shorashori istrir tap deben na.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_014",
+        "source_product_number": 14,
+        "title": "Black Tunic with Pink-Green Ornamental Panel",
+        "title_bn": "গোলাপি-সবুজ অলংকার প্যানেলের কালো টিউনিক",
+        "title_banglish": "Golapi-Shobuj Olongkar Panel-er Kalo Tunic",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/13",
+        "primary_image_path": "product Image/product14.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "use_and_care"
+      }
+    },
+    {
+      "id": "IMG_014:purchase_and_custom_design:v1",
+      "page_content": "Product ID: IMG_014\nEnglish: Black Tunic with Pink-Green Ornamental Panel\nবাংলা: গোলাপি-সবুজ অলংকার প্যানেলের কালো টিউনিক\nBanglish: Golapi-Shobuj Olongkar Panel-er Kalo Tunic\nSection: purchase_and_custom_design\nPrice / দাম / dam: Unknown / নিশ্চিত নয় / nishchit noy\nDiscounted price / ছাড়ের দাম / charer dam: Unknown / নিশ্চিত নয় / nishchit noy\nCurrency / মুদ্রা / mudra: Unknown / নিশ্চিত নয় / nishchit noy\nAvailability / স্টক আছে কি / stock ache ki: needs_confirmation\nStock quantity / স্টকের সংখ্যা / stock shongkha: Unknown / নিশ্চিত নয় / nishchit noy\nPackage contents / প্যাকেজে কী আছে / package-e ki ache: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design / কাস্টম ডিজাইন / custom noksha available: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design status: needs_confirmation\nCustom design additional price: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design lead time (days): Unknown / নিশ্চিত নয় / nishchit noy\nEnglish: Unconfirmed commercial fields require seller confirmation. A design request is not an accepted custom order.\nবাংলা: অনিশ্চিত বাণিজ্যিক তথ্য বিক্রেতার কাছে নিশ্চিত করতে হবে। ডিজাইনের অনুরোধ মানেই কাস্টম অর্ডার গ্রহণ নয়।\nBanglish: Onishchit banijjik tottho bikretar kachhe nishchit korte hobe. Design-er onurodh manei custom order grohon noy.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_014",
+        "source_product_number": 14,
+        "title": "Black Tunic with Pink-Green Ornamental Panel",
+        "title_bn": "গোলাপি-সবুজ অলংকার প্যানেলের কালো টিউনিক",
+        "title_banglish": "Golapi-Shobuj Olongkar Panel-er Kalo Tunic",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/13",
+        "primary_image_path": "product Image/product14.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "purchase_and_custom_design"
+      }
+    },
+    {
+      "id": "IMG_015:identity:v1",
+      "page_content": "Product ID: IMG_015\nEnglish: Green Open-Front Decorative Outer Layer\nবাংলা: সামনে খোলা নকশার সবুজ ওপরের পোশাক\nBanglish: Shamne Khola Nokshar Shobuj Oporer Poshak\nSection: identity\nCategory:\nEnglish: Open-front outer layer\nবাংলা: সামনে খোলা ওপরের পোশাক\nBanglish: Shamne khola oporer poshak\nDescription:\nEnglish: Green open-front, jacket-style garment with three-quarter-appearing sleeves, horizontal colorful chest motifs, hanging light accents and contrasting sleeve bands. A lower square motif looks pocket-like, but a functional pocket is not verified.\nবাংলা: তিন-চতুর্থাংশের মতো হাতা, বুকে আড়াআড়ি রঙিন মোটিফ, হালকা ঝুলন্ত অংশ ও বিপরীত হাতার ব্যান্ডসহ সবুজ সামনে খোলা জ্যাকেট ধরনের পোশাক। নিচের বর্গাকার মোটিফ পকেটের মতো দেখালেও কার্যকর পকেট নিশ্চিত নয়।\nBanglish: Three-quarter-er moto hata, buke araari rongin motif, halka jhulonto ongsho o biporit hatar band-shoho shobuj shamne khola jacket dhoroner poshak. Nicher borgakar motif pocket-er moto dekhaleo karjokor pocket nishchit noy.\nAliases (en): green open front jacket, green outer layer, decorative jacket style top\nAliases (bn): সবুজ সামনে খোলা পোশাক, সবুজ জ্যাকেট ধরনের টপ, লেয়ারিং পোশাক\nAliases (banglish): shobuj open front, sobuj jacket, green outer layer, layering top",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_015",
+        "source_product_number": 15,
+        "title": "Green Open-Front Decorative Outer Layer",
+        "title_bn": "সামনে খোলা নকশার সবুজ ওপরের পোশাক",
+        "title_banglish": "Shamne Khola Nokshar Shobuj Oporer Poshak",
+        "category": "outer_layer",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/14",
+        "primary_image_path": "product Image/product15.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "medium",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "identity"
+      }
+    },
+    {
+      "id": "IMG_015:appearance_and_size:v1",
+      "page_content": "Product ID: IMG_015\nEnglish: Green Open-Front Decorative Outer Layer\nবাংলা: সামনে খোলা নকশার সবুজ ওপরের পোশাক\nBanglish: Shamne Khola Nokshar Shobuj Oporer Poshak\nSection: appearance_and_size\nVisual observations (not confirmed available variants):\nobserved_colors: green, blue, yellow, white, multicolor accents\npattern: Horizontal chest motifs and lower square decorative patch\nsleeve: three_quarter_appearing\nneckline: open_front\nfit: Unknown / নিশ্চিত নয় / nishchit noy\nAvailable sizes / সাইজ / size: Unknown / নিশ্চিত নয় / nishchit noy\nMeasurements / মাপ / map: unit: Unknown / নিশ্চিত নয় / nishchit noy; chest: Unknown / নিশ্চিত নয় / nishchit noy; shoulder: Unknown / নিশ্চিত নয় / nishchit noy; length: Unknown / নিশ্চিত নয় / nishchit noy\nConfirmed available colors / পাওয়া যাবে এমন রং / available rong: Unknown / নিশ্চিত নয় / nishchit noy\nMaterial / কাপড় / kapor: Unknown / নিশ্চিত নয় / nishchit noy\nNotes:\nEnglish: Closure, lining, warmth, pocket functionality and fabric composition need merchant confirmation.\nবাংলা: বন্ধ করার ব্যবস্থা, লাইনিং, গরম রাখার ক্ষমতা, পকেট ও কাপড় বিক্রেতার কাছে নিশ্চিত করতে হবে।\nBanglish: Bondho korar byabostha, lining, gorom rakhar khomota, pocket o kapor bikretar kachhe nishchit korte hobe.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_015",
+        "source_product_number": 15,
+        "title": "Green Open-Front Decorative Outer Layer",
+        "title_bn": "সামনে খোলা নকশার সবুজ ওপরের পোশাক",
+        "title_banglish": "Shamne Khola Nokshar Shobuj Oporer Poshak",
+        "category": "outer_layer",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/14",
+        "primary_image_path": "product Image/product15.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "medium",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "appearance_and_size"
+      }
+    },
+    {
+      "id": "IMG_015:use_and_care:v1",
+      "page_content": "Product ID: IMG_015\nEnglish: Green Open-Front Decorative Outer Layer\nবাংলা: সামনে খোলা নকশার সবুজ ওপরের পোশাক\nBanglish: Shamne Khola Nokshar Shobuj Oporer Poshak\nSection: use_and_care\nHow to use / কীভাবে ব্যবহার করবেন / kibhabe porbo:\nEnglish: Layer over a suitable top with trousers. Confirm chest, shoulder, closure details and layering fit before ordering.\nবাংলা: উপযুক্ত টপ ও প্যান্টের ওপর লেয়ার হিসেবে পরুন। অর্ডারের আগে বুক, কাঁধ, বন্ধ করার ব্যবস্থা ও লেয়ারিং ফিট নিশ্চিত করুন।\nBanglish: Upajukto top o pant-er upor layer hisebe porun. Order-er age buk, kandh, bondho korar byabostha o layering fit nishchit korun.\nCare / যত্ন / jotno:\nEnglish: Protect the hanging decorations and follow the label. Do not assume this is a knitted cardigan or winter-insulating jacket.\nবাংলা: ঝুলন্ত নকশা সুরক্ষিত রাখুন ও লেবেল মানুন। এটি নিট কার্ডিগান বা শীতের গরম জ্যাকেট ধরে নেবেন না।\nBanglish: Jhulonto noksha shurokkhito rakhun o label manun. Eti knit cardigan ba shiter gorom jacket dhore neben na.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_015",
+        "source_product_number": 15,
+        "title": "Green Open-Front Decorative Outer Layer",
+        "title_bn": "সামনে খোলা নকশার সবুজ ওপরের পোশাক",
+        "title_banglish": "Shamne Khola Nokshar Shobuj Oporer Poshak",
+        "category": "outer_layer",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/14",
+        "primary_image_path": "product Image/product15.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "medium",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "use_and_care"
+      }
+    },
+    {
+      "id": "IMG_015:purchase_and_custom_design:v1",
+      "page_content": "Product ID: IMG_015\nEnglish: Green Open-Front Decorative Outer Layer\nবাংলা: সামনে খোলা নকশার সবুজ ওপরের পোশাক\nBanglish: Shamne Khola Nokshar Shobuj Oporer Poshak\nSection: purchase_and_custom_design\nPrice / দাম / dam: Unknown / নিশ্চিত নয় / nishchit noy\nDiscounted price / ছাড়ের দাম / charer dam: Unknown / নিশ্চিত নয় / nishchit noy\nCurrency / মুদ্রা / mudra: Unknown / নিশ্চিত নয় / nishchit noy\nAvailability / স্টক আছে কি / stock ache ki: needs_confirmation\nStock quantity / স্টকের সংখ্যা / stock shongkha: Unknown / নিশ্চিত নয় / nishchit noy\nPackage contents / প্যাকেজে কী আছে / package-e ki ache: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design / কাস্টম ডিজাইন / custom noksha available: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design status: needs_confirmation\nCustom design additional price: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design lead time (days): Unknown / নিশ্চিত নয় / nishchit noy\nEnglish: Unconfirmed commercial fields require seller confirmation. A design request is not an accepted custom order.\nবাংলা: অনিশ্চিত বাণিজ্যিক তথ্য বিক্রেতার কাছে নিশ্চিত করতে হবে। ডিজাইনের অনুরোধ মানেই কাস্টম অর্ডার গ্রহণ নয়।\nBanglish: Onishchit banijjik tottho bikretar kachhe nishchit korte hobe. Design-er onurodh manei custom order grohon noy.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_015",
+        "source_product_number": 15,
+        "title": "Green Open-Front Decorative Outer Layer",
+        "title_bn": "সামনে খোলা নকশার সবুজ ওপরের পোশাক",
+        "title_banglish": "Shamne Khola Nokshar Shobuj Oporer Poshak",
+        "category": "outer_layer",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/14",
+        "primary_image_path": "product Image/product15.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "medium",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "purchase_and_custom_design"
+      }
+    },
+    {
+      "id": "IMG_017:identity:v1",
+      "page_content": "Product ID: IMG_017\nEnglish: Plum-Purple Conch-Motif Short-Sleeve Tunic\nবাংলা: শঙ্খ মোটিফের প্লাম-বেগুনি ছোট হাতার টিউনিক\nBanglish: Shonkho Motif-er Plum-Beguni Chhoto Hatar Tunic\nSection: identity\nCategory:\nEnglish: Tunic / kurti\nবাংলা: টিউনিক / কুর্তি\nBanglish: Tunic / kurti\nDescription:\nEnglish: Plum-purple short-sleeve tunic with a round neckline and a large white conch-like ornamental central motif framed by gold-colored line details. The primary image is product17.1.jpg because it shows the garment rather than only the motif.\nবাংলা: গোল গলা ও মাঝখানে সোনালি রঙের রেখায় ঘেরা বড় সাদা শঙ্খের মতো অলংকারধর্মী মোটিফের প্লাম-বেগুনি ছোট হাতার টিউনিক। শুধু নকশা নয়, পোশাক দেখা যায় বলে product17.1.jpg মূল ছবি।\nBanglish: Gol gola o majhkhane shonali ronger rekhay ghera boro shada shonkher moto olongkardhormi motif-er plum-beguni chhoto hatar tunic. Shudhu noksha noy, poshak dekha jay bole product17.1.jpg mul chhobi.\nAliases (en): plum kurti, purple conch motif tunic, white gold motif top, conch shell motif\nAliases (bn): প্লাম কুর্তি, শঙ্খ নকশার টপ, বেগুনি শঙ্খ কুর্তি\nAliases (banglish): plum kurti, shonkho kurti, shankha top, beguni shonkho tunic, purple conch top",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_017",
+        "source_product_number": 17,
+        "title": "Plum-Purple Conch-Motif Short-Sleeve Tunic",
+        "title_bn": "শঙ্খ মোটিফের প্লাম-বেগুনি ছোট হাতার টিউনিক",
+        "title_banglish": "Shonkho Motif-er Plum-Beguni Chhoto Hatar Tunic",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/15",
+        "primary_image_path": "product Image/product17.1.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "identity"
+      }
+    },
+    {
+      "id": "IMG_017:appearance_and_size:v1",
+      "page_content": "Product ID: IMG_017\nEnglish: Plum-Purple Conch-Motif Short-Sleeve Tunic\nবাংলা: শঙ্খ মোটিফের প্লাম-বেগুনি ছোট হাতার টিউনিক\nBanglish: Shonkho Motif-er Plum-Beguni Chhoto Hatar Tunic\nSection: appearance_and_size\nVisual observations (not confirmed available variants):\nobserved_colors: plum-purple, white, gold-colored accents\npattern: Large conch-like ornamental central motif\nsleeve: short\nneckline: round\nfit: Unknown / নিশ্চিত নয় / nishchit noy\nAvailable sizes / সাইজ / size: Unknown / নিশ্চিত নয় / nishchit noy\nMeasurements / মাপ / map: unit: Unknown / নিশ্চিত নয় / nishchit noy; chest: Unknown / নিশ্চিত নয় / nishchit noy; length: Unknown / নিশ্চিত নয় / nishchit noy; waist: Unknown / নিশ্চিত নয় / nishchit noy\nConfirmed available colors / পাওয়া যাবে এমন রং / available rong: Unknown / নিশ্চিত নয় / nishchit noy\nMaterial / কাপড় / kapor: Unknown / নিশ্চিত নয় / nishchit noy\nNotes:\nEnglish: Conch-like motif identification is visual. Decoration technique, metallic content and fabric are not verified.\nবাংলা: শঙ্খের মতো মোটিফ চিহ্নিত করা হয়েছে ছবি দেখে। নকশার পদ্ধতি, ধাতব উপাদান ও কাপড় নিশ্চিত নয়।\nBanglish: Shonkher moto motif chihnito kora hoyeche chhobi dekhe. Nokshar poddhoti, dhatob upadan o kapor nishchit noy.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_017",
+        "source_product_number": 17,
+        "title": "Plum-Purple Conch-Motif Short-Sleeve Tunic",
+        "title_bn": "শঙ্খ মোটিফের প্লাম-বেগুনি ছোট হাতার টিউনিক",
+        "title_banglish": "Shonkho Motif-er Plum-Beguni Chhoto Hatar Tunic",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/15",
+        "primary_image_path": "product Image/product17.1.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "appearance_and_size"
+      }
+    },
+    {
+      "id": "IMG_017:use_and_care:v1",
+      "page_content": "Product ID: IMG_017\nEnglish: Plum-Purple Conch-Motif Short-Sleeve Tunic\nবাংলা: শঙ্খ মোটিফের প্লাম-বেগুনি ছোট হাতার টিউনিক\nBanglish: Shonkho Motif-er Plum-Beguni Chhoto Hatar Tunic\nSection: use_and_care\nHow to use / কীভাবে ব্যবহার করবেন / kibhabe porbo:\nEnglish: Wear with plain trousers or leggings and check chest and length measurements before purchase.\nবাংলা: সাধারণ প্যান্ট বা লেগিংসের সঙ্গে পরুন ও কেনার আগে বুক ও লম্বা মিলিয়ে নিন।\nBanglish: Shadharon pant ba leggings-er shathe porun o kenar age buk o lomba miliye nin.\nCare / যত্ন / jotno:\nEnglish: Follow the label and avoid direct ironing over the central motif. Gold-colored detail does not imply metallic thread.\nবাংলা: লেবেল মানুন ও মাঝের মোটিফে সরাসরি ইস্ত্রি করবেন না। সোনালি রং মানেই মেটালিক সুতা নয়।\nBanglish: Label manun o majher motif-e shorashori istri korben na. Shonali rong manei metallic shuta noy.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_017",
+        "source_product_number": 17,
+        "title": "Plum-Purple Conch-Motif Short-Sleeve Tunic",
+        "title_bn": "শঙ্খ মোটিফের প্লাম-বেগুনি ছোট হাতার টিউনিক",
+        "title_banglish": "Shonkho Motif-er Plum-Beguni Chhoto Hatar Tunic",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/15",
+        "primary_image_path": "product Image/product17.1.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "use_and_care"
+      }
+    },
+    {
+      "id": "IMG_017:purchase_and_custom_design:v1",
+      "page_content": "Product ID: IMG_017\nEnglish: Plum-Purple Conch-Motif Short-Sleeve Tunic\nবাংলা: শঙ্খ মোটিফের প্লাম-বেগুনি ছোট হাতার টিউনিক\nBanglish: Shonkho Motif-er Plum-Beguni Chhoto Hatar Tunic\nSection: purchase_and_custom_design\nPrice / দাম / dam: Unknown / নিশ্চিত নয় / nishchit noy\nDiscounted price / ছাড়ের দাম / charer dam: Unknown / নিশ্চিত নয় / nishchit noy\nCurrency / মুদ্রা / mudra: Unknown / নিশ্চিত নয় / nishchit noy\nAvailability / স্টক আছে কি / stock ache ki: needs_confirmation\nStock quantity / স্টকের সংখ্যা / stock shongkha: Unknown / নিশ্চিত নয় / nishchit noy\nPackage contents / প্যাকেজে কী আছে / package-e ki ache: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design / কাস্টম ডিজাইন / custom noksha available: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design status: needs_confirmation\nCustom design additional price: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design lead time (days): Unknown / নিশ্চিত নয় / nishchit noy\nEnglish: Unconfirmed commercial fields require seller confirmation. A design request is not an accepted custom order.\nবাংলা: অনিশ্চিত বাণিজ্যিক তথ্য বিক্রেতার কাছে নিশ্চিত করতে হবে। ডিজাইনের অনুরোধ মানেই কাস্টম অর্ডার গ্রহণ নয়।\nBanglish: Onishchit banijjik tottho bikretar kachhe nishchit korte hobe. Design-er onurodh manei custom order grohon noy.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_017",
+        "source_product_number": 17,
+        "title": "Plum-Purple Conch-Motif Short-Sleeve Tunic",
+        "title_bn": "শঙ্খ মোটিফের প্লাম-বেগুনি ছোট হাতার টিউনিক",
+        "title_banglish": "Shonkho Motif-er Plum-Beguni Chhoto Hatar Tunic",
+        "category": "tunic",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/15",
+        "primary_image_path": "product Image/product17.1.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "high",
+        "requires_review": true,
+        "unidentified_item": false,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "purchase_and_custom_design"
+      }
+    },
+    {
+      "id": "IMG_018:identity:v1",
+      "page_content": "Product ID: IMG_018\nEnglish: Pale-Yellow Geometric-Motif Item — Identification Required\nবাংলা: জ্যামিতিক মোটিফের ফ্যাকাশে হলুদ পণ্য — পরিচয় প্রয়োজন\nBanglish: Jyamitik Motif-er Fakashe Holud Ponno — Porichoy Proyojon\nSection: identity\nCategory:\nEnglish: Unidentified item\nবাংলা: অপরিচিত পণ্য\nBanglish: Oporichito ponno\nDescription:\nEnglish: A folded pale-yellow rectangular item with brown looping geometric decoration, a narrow looping border and light-colored loops or tassel-like details along one edge. The low-resolution folded views do not establish its function, material or whether it is a textile or another kind of accessory.\nবাংলা: বাদামি লুপের জ্যামিতিক নকশা, সরু লুপের পাড় ও এক প্রান্তে হালকা লুপ বা ট্যাসেলের মতো অংশসহ ভাঁজ করা ফ্যাকাশে হলুদ আয়তাকার জিনিস। কম রেজোলিউশনের ভাঁজ করা ছবি থেকে ব্যবহার, উপাদান বা এটি কাপড় নাকি অন্য উপকরণ তা নিশ্চিত নয়।\nBanglish: Badami loop-er jyamitik noksha, shoru loop-er par o ek prante halka loop ba tassel-er moto ongsho-shoho bhaj kora fakashe holud ayotakar jinis. Kom resolution-er bhaj kora chhobi theke byabohar, upadan ba eti kapor naki onno upokoron ta nishchit noy.\nAliases (en): pale yellow geometric item, yellow folded item, brown loop motif, unidentified product 18\nAliases (bn): ফ্যাকাশে হলুদ পণ্য, হলুদ ভাঁজ করা জিনিস, বাদামি লুপ নকশা, অজানা পণ্য ১৮\nAliases (banglish): fakashe holud ponno, holud bhaj kora jinis, badami loop noksha, ojana product 18",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_018",
+        "source_product_number": 18,
+        "title": "Pale-Yellow Geometric-Motif Item — Identification Required",
+        "title_bn": "জ্যামিতিক মোটিফের ফ্যাকাশে হলুদ পণ্য — পরিচয় প্রয়োজন",
+        "title_banglish": "Jyamitik Motif-er Fakashe Holud Ponno — Porichoy Proyojon",
+        "category": "unidentified",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/16",
+        "primary_image_path": "product Image/product18.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "low",
+        "requires_review": true,
+        "unidentified_item": true,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "identity"
+      }
+    },
+    {
+      "id": "IMG_018:appearance_and_size:v1",
+      "page_content": "Product ID: IMG_018\nEnglish: Pale-Yellow Geometric-Motif Item — Identification Required\nবাংলা: জ্যামিতিক মোটিফের ফ্যাকাশে হলুদ পণ্য — পরিচয় প্রয়োজন\nBanglish: Jyamitik Motif-er Fakashe Holud Ponno — Porichoy Proyojon\nSection: appearance_and_size\nVisual observations (not confirmed available variants):\nobserved_colors: pale yellow, brown, light edge accents\npattern: Looping geometric motif and narrow border\nsleeve: Unknown / নিশ্চিত নয় / nishchit noy\nneckline: Unknown / নিশ্চিত নয় / nishchit noy\nfit: Unknown / নিশ্চিত নয় / nishchit noy\nAvailable sizes / সাইজ / size: Unknown / নিশ্চিত নয় / nishchit noy\nMeasurements / মাপ / map: unit: Unknown / নিশ্চিত নয় / nishchit noy; length: Unknown / নিশ্চিত নয় / nishchit noy; width: Unknown / নিশ্চিত নয় / nishchit noy\nConfirmed available colors / পাওয়া যাবে এমন রং / available rong: Unknown / নিশ্চিত নয় / nishchit noy\nMaterial / কাপড় / kapor: Unknown / নিশ্চিত নয় / nishchit noy\nNotes:\nEnglish: Do not label this a scarf, saree, bag, notebook or other specific product without merchant confirmation. The two supplied images appear duplicated.\nবাংলা: বিক্রেতার নিশ্চয়তা ছাড়া একে স্কার্ফ, শাড়ি, ব্যাগ, নোটবুক বা নির্দিষ্ট পণ্য বলবেন না। দুটি ছবি আপাত একই।\nBanglish: Bikretar nishchoyota chhara eke scarf, shari, bag, notebook ba nirdishto ponno bolben na. Duti chhobi apat eki.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_018",
+        "source_product_number": 18,
+        "title": "Pale-Yellow Geometric-Motif Item — Identification Required",
+        "title_bn": "জ্যামিতিক মোটিফের ফ্যাকাশে হলুদ পণ্য — পরিচয় প্রয়োজন",
+        "title_banglish": "Jyamitik Motif-er Fakashe Holud Ponno — Porichoy Proyojon",
+        "category": "unidentified",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/16",
+        "primary_image_path": "product Image/product18.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "low",
+        "requires_review": true,
+        "unidentified_item": true,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "appearance_and_size"
+      }
+    },
+    {
+      "id": "IMG_018:use_and_care:v1",
+      "page_content": "Product ID: IMG_018\nEnglish: Pale-Yellow Geometric-Motif Item — Identification Required\nবাংলা: জ্যামিতিক মোটিফের ফ্যাকাশে হলুদ পণ্য — পরিচয় প্রয়োজন\nBanglish: Jyamitik Motif-er Fakashe Holud Ponno — Porichoy Proyojon\nSection: use_and_care\nHow to use / কীভাবে ব্যবহার করবেন / kibhabe porbo:\nEnglish: Do not give product-specific use instructions yet. Ask the seller for the product name, purpose, an unfolded/full view and dimensions first.\nবাংলা: এখনই নির্দিষ্ট ব্যবহারবিধি দেওয়া যাবে না। আগে বিক্রেতার কাছে পণ্যের নাম, কাজ, খোলা বা পূর্ণ ছবি ও মাপ চান।\nBanglish: Ekhoni nirdishto byaboharbidhi deowa jabe na. Age bikretar kachhe ponner nam, kaj, khola ba purno chhobi o map chan.\nCare / যত্ন / jotno:\nEnglish: Cleaning instructions are unknown until the item and material are identified; do not wash based on appearance alone.\nবাংলা: পণ্য ও উপাদান জানা না পর্যন্ত পরিষ্কারের নিয়ম অজানা; শুধু চেহারা দেখে ধোবেন না।\nBanglish: Ponno o upadan jana na porjonto porishkarer niyom ojana; shudhu chehara dekhe dhoben na.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_018",
+        "source_product_number": 18,
+        "title": "Pale-Yellow Geometric-Motif Item — Identification Required",
+        "title_bn": "জ্যামিতিক মোটিফের ফ্যাকাশে হলুদ পণ্য — পরিচয় প্রয়োজন",
+        "title_banglish": "Jyamitik Motif-er Fakashe Holud Ponno — Porichoy Proyojon",
+        "category": "unidentified",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/16",
+        "primary_image_path": "product Image/product18.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "low",
+        "requires_review": true,
+        "unidentified_item": true,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "use_and_care"
+      }
+    },
+    {
+      "id": "IMG_018:purchase_and_custom_design:v1",
+      "page_content": "Product ID: IMG_018\nEnglish: Pale-Yellow Geometric-Motif Item — Identification Required\nবাংলা: জ্যামিতিক মোটিফের ফ্যাকাশে হলুদ পণ্য — পরিচয় প্রয়োজন\nBanglish: Jyamitik Motif-er Fakashe Holud Ponno — Porichoy Proyojon\nSection: purchase_and_custom_design\nPrice / দাম / dam: Unknown / নিশ্চিত নয় / nishchit noy\nDiscounted price / ছাড়ের দাম / charer dam: Unknown / নিশ্চিত নয় / nishchit noy\nCurrency / মুদ্রা / mudra: Unknown / নিশ্চিত নয় / nishchit noy\nAvailability / স্টক আছে কি / stock ache ki: needs_confirmation\nStock quantity / স্টকের সংখ্যা / stock shongkha: Unknown / নিশ্চিত নয় / nishchit noy\nPackage contents / প্যাকেজে কী আছে / package-e ki ache: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design / কাস্টম ডিজাইন / custom noksha available: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design status: needs_confirmation\nCustom design additional price: Unknown / নিশ্চিত নয় / nishchit noy\nCustom design lead time (days): Unknown / নিশ্চিত নয় / nishchit noy\nEnglish: Unconfirmed commercial fields require seller confirmation. A design request is not an accepted custom order.\nবাংলা: অনিশ্চিত বাণিজ্যিক তথ্য বিক্রেতার কাছে নিশ্চিত করতে হবে। ডিজাইনের অনুরোধ মানেই কাস্টম অর্ডার গ্রহণ নয়।\nBanglish: Onishchit banijjik tottho bikretar kachhe nishchit korte hobe. Design-er onurodh manei custom order grohon noy.",
+      "metadata": {
+        "catalog_id": "product-image-catalog",
+        "product_id": "IMG_018",
+        "source_product_number": 18,
+        "title": "Pale-Yellow Geometric-Motif Item — Identification Required",
+        "title_bn": "জ্যামিতিক মোটিফের ফ্যাকাশে হলুদ পণ্য — পরিচয় প্রয়োজন",
+        "title_banglish": "Jyamitik Motif-er Fakashe Holud Ponno — Porichoy Proyojon",
+        "category": "unidentified",
+        "source_file": "Data/product_image_catalog.json",
+        "source_json_pointer": "/products/16",
+        "primary_image_path": "product Image/product18.jpg",
+        "languages": "en,bn,banglish",
+        "evidence": "image_observation_not_merchant_verified",
+        "identity_confidence": "low",
+        "requires_review": true,
+        "unidentified_item": true,
+        "availability": "needs_confirmation",
+        "price_known": false,
+        "sizes_known": false,
+        "available_colors_known": false,
+        "custom_design_known": false,
+        "section": "purchase_and_custom_design"
+      }
+    }
+  ]
+}

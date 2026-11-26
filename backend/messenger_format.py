@@ -7,6 +7,7 @@ import re
 from dataclasses import dataclass, field
 
 from backend.database import transaction
+from backend.catalog_state import active_product, commercial_text
 from backend.language import is_bangla
 from backend.media import public_image_url
 from backend.records import ProductImage
@@ -14,7 +15,7 @@ from backend.product_links import public_product_url, public_order_url
 from backend.retrieval import product_dict
 from models import Product
 
-PRODUCT_TAG = re.compile(r"\[\s*(?:source_id:\s*)?product:(SKU_[A-Z0-9_-]+)\s*\]", re.I)
+PRODUCT_TAG = re.compile(r"\[\s*(?:source_id:\s*)?product:((?:SKU|IMG)_[A-Z0-9_-]+)\s*\]", re.I)
 SOURCE_TAG = re.compile(r"\[\s*(?:source_id:\s*)?(?:product|policy|knowledge|catalog):[^\]\n]+\]", re.I)
 
 
@@ -66,7 +67,7 @@ def format_messenger_response(response, shop_id, query=""):
     if not product_ids:
         return MessengerReply(text, [])
     with transaction() as db:
-        rows = db.query(Product).filter(Product.shop_id == shop_id, Product.product_id.in_(product_ids)).all()
+        rows = db.query(Product).filter(active_product(), Product.shop_id == shop_id, Product.product_id.in_(product_ids)).all()
         images = db.query(ProductImage).filter(ProductImage.shop_id == shop_id,
                                                ProductImage.product_id.in_(product_ids)).all()
         by_id = {row.product_id: product_dict(row) for row in rows}

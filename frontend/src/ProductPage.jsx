@@ -35,8 +35,8 @@ export default function ProductPage({ productId, token, profile, onReview }) {
       <div className="product-detail-copy">
         <span className="eyebrow">{product.category} / {product.product_id}</span>
         <h1>{product.name}</h1><p>{product.description}</p>
-        <div className="product-detail-price"><strong>{currency(product.effective_price)}</strong>{product.effective_price < product.price && <del>{currency(product.price)}</del>}</div>
-        <p>{product.stock_count > 0 ? `${product.stock_count} in stock` : 'Currently out of stock'}</p>
+        <div className="product-detail-price"><strong>{currency(product.effective_price)}</strong>{product.effective_price !== null && product.effective_price < product.price && <del>{currency(product.price)}</del>}</div>
+        <p>{product.stock_count !== null && product.stock_count !== undefined ? (product.stock_count > 0 ? `${product.stock_count} in stock` : 'Currently out of stock') : 'Stock needs merchant confirmation'}</p>
         <dl><dt>Colors / variants</dt><dd>{product.colors?.join(' · ') || 'Not listed'}</dd><dt>Sizes</dt><dd>{product.sizes?.join(' / ') || 'Not listed'}</dd></dl>
         <a className="primary product-detail-order-link" href="#order-form">Edit delivery details &amp; order</a>
         <p className="small muted">Prices are merchandise-only in USD. Opening this link does not create or confirm an order.</p>

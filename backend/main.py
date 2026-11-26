@@ -29,6 +29,7 @@ from backend.database import initialize, transaction
 from backend.notifications import deliver_notifications
 from backend.records import AccessSession, ChatTurn, Notification, OrderDraft, ProductImage
 from backend.media import generated_product_svg, product_image_record
+from backend.catalog_state import active_product
 from backend.voice import transcribe_audio
 from backend import sentiment as mood
 from backend.conversation_state import record_sentiment, remember_turn, snapshot as conversation_snapshot
@@ -257,8 +258,25 @@ def product_image(product_id: str):
         parsed = urlparse(image.image_url)
         if parsed.scheme in ("http", "https") and parsed.netloc:
             return RedirectResponse(image.image_url, status_code=307)
+        if image.image_url.startswith("/api/catalog-media/"):
+            return _catalog_media_file(image.image_url.rsplit("/", 1)[-1])
     return Response(generated_product_svg(product), media_type="image/svg+xml",
                     headers={"Cache-Control": "public, max-age=3600"})
+
+
+def _catalog_media_file(filename):
+    import re as _re
+    if not _re.fullmatch(r"product\d+(?:\.\d+)?\.jpe?g", filename, _re.I):
+        raise HTTPException(404, "Media not found")
+    path = (ROOT / "product Image" / filename).resolve()
+    if not str(path).startswith(str((ROOT / "product Image").resolve())) or not path.is_file():
+        raise HTTPException(404, "Media not found")
+    return FileResponse(path, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
+
+
+@app.get("/api/catalog-media/{filename}")
+def catalog_media(filename: str):
+    return _catalog_media_file(filename)
 
 
 @app.get("/api/products")
@@ -268,7 +286,7 @@ def catalog(q: str = "", category: str = "", session=Depends(customer_session)):
             raise HTTPException(422, "Search query too long")
         return [s["data"] for s in retriever.search(q, session.shop_id, "product", 30)]
     with transaction() as db:
-        query = db.query(Product).filter_by(shop_id=session.shop_id)
+        query = db.query(Product).filter_by(shop_id=session.shop_id).filter(active_product())
         if category:
             query = query.filter_by(category=category)
         return [product_dict(p) for p in query.order_by(Product.name).limit(500)]
@@ -278,16 +296,18 @@ def catalog(q: str = "", category: str = "", session=Depends(customer_session)):
 def public_product(product_id: str):
     """Read-only public product detail for Messenger links; no customer/session data."""
     with transaction() as db:
-        product = db.query(Product).filter_by(product_id=product_id, shop_id=settings.shop_id).first()
+        product = db.query(Product).filter_by(product_id=product_id, shop_id=settings.shop_id).filter(active_product()).first()
         if not product:
             raise HTTPException(404, "Product not found")
         image = db.query(ProductImage).filter_by(product_id=product_id, shop_id=settings.shop_id).first()
         data = product_dict(product)
-        parsed_image = urlparse(image.image_url or "") if image else None
-        has_image = bool(parsed_image and parsed_image.scheme in ("http", "https") and parsed_image.netloc)
-        representative = bool(has_image and re.search(r"representative|illustration", image.alt_text or "", re.I))
-        return {**data, "image_kind": "representative" if representative else "photo" if has_image else "illustration",
-                "image_alt": image.alt_text if has_image else f"{product.name} illustration"}
+        raw_image = image.image_url if image else None
+        parsed_image = urlparse(raw_image or "")
+        has_http_image = bool(parsed_image and parsed_image.scheme in ("http", "https") and parsed_image.netloc)
+        has_photo = has_http_image or bool(raw_image and raw_image.startswith("/api/catalog-media/"))
+        representative = bool(has_photo and re.search(r"representative|illustration", image.alt_text or "", re.I))
+        return {**data, "image_kind": "representative" if representative else "photo" if has_photo else "illustration",
+                "image_alt": image.alt_text if has_photo else f"{product.name} illustration"}
 
 
 @app.get("/api/policies")
@@ -349,7 +369,7 @@ def admin_login(payload: AdminLogin, request: Request):
 @app.get("/api/admin/dashboard")
 def dashboard(session=Depends(admin_session)):
     with transaction() as db:
-        products = [product_dict(p) for p in db.query(Product).filter_by(shop_id=session.shop_id)]
+        products = [product_dict(p) for p in db.query(Product).filter_by(shop_id=session.shop_id).filter(active_product())]
         orders = [dict(order_dict(o), customer_id=o.customer_id) for o in db.query(Order).filter_by(shop_id=session.shop_id).order_by(Order.order_id.desc()).limit(500)]
         customers = [profile_dict(c) for c in db.query(Customer).filter_by(shop_id=session.shop_id).order_by(Customer.customer_id.desc()).limit(500)]
         cases = list_cases(db, session.shop_id)

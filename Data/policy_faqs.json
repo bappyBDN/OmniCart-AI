@@ -1,0 +1,12 @@
+[
+  {"source_id":"POL_001","en":"How soon must I request a refund? Can I refund sealed electronics after opening?","bn":"কত দিনের মধ্যে রিফান্ড চাইতে হবে? সিল ভাঙা ইলেকট্রনিক পণ্যে কি রিফান্ড হবে?","banglish":"Koto diner moddhe refund chaite hobe? Seal bhanga electronics-e refund hobe?"},
+  {"source_id":"POL_002","en":"What are inside/outside city delivery charges and times? When is shipping free?","bn":"শহরের ভিতরে ও বাইরে ডেলিভারি খরচ ও সময় কত? ফ্রি ডেলিভারি কখন?","banglish":"Shohorer vitore ba baire delivery khoroch o shomoy koto? Free delivery kokhon?"},
+  {"source_id":"POL_005","en":"Can I return perishable goods? What is the return window?","bn":"পচনশীল পণ্য ফেরত দিতে পারি? রিটার্নের সময়সীমা কত?","banglish":"Perishable ponno ferot dite pari? Return-er shomoyshima koto?"},
+  {"source_id":"POL_007","en":"Can I exchange an unworn item for a different size or color?","bn":"অব্যবহৃত পণ্যের সাইজ বা রঙ বদলানো যাবে?","banglish":"Unworn item-er size ba rong bodlano jabe?"},
+  {"source_id":"POL_008","en":"My item arrived damaged. How soon should I contact support?","bn":"ক্ষতিগ্রস্ত পণ্য এসেছে। কত তাড়াতাড়ি সাপোর্টে জানাতে হবে?","banglish":"Damaged ponno esheche. Koto taratari support-e janate hobe?"},
+  {"source_id":"POL_015","en":"Do identical items qualify for bulk discounts?","bn":"একই পণ্য বেশি নিলে বাল্ক ছাড় কত?","banglish":"Eki ponno beshi nile bulk char koto?"},
+  {"source_id":"POL_029","en":"How soon can I change my order size, color or address?","bn":"অর্ডারের সাইজ, রঙ বা ঠিকানা কতক্ষণের মধ্যে বদলাতে পারি?","banglish":"Order-er size, rong ba address kotokkhoner moddhe bodlate pari?"},
+  {"source_id":"POL_044","en":"Does cash on delivery have a fee? Can the driver give change?","bn":"ক্যাশ অন ডেলিভারিতে ফি আছে? চালক খুচরা দিতে পারবেন?","banglish":"Cash on delivery-te fee ache? Driver khuchra dite parben?"},
+  {"source_id":"POL_048","en":"Where and when will I receive tracking information?","bn":"ট্র্যাকিং নম্বর কোথায় ও কখন পাব?","banglish":"Tracking number kothay o kokhon pabo?"},
+  {"source_id":"POL_050","en":"How long are order records and chat logs kept?","bn":"অর্ডারের তথ্য ও চ্যাট লগ কত দিন রাখা হয়?","banglish":"Order tottho o chat log kotodin rakha hoy?"}
+]

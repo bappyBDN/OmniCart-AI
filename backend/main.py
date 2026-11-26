@@ -260,6 +260,22 @@ def catalog(q: str = "", category: str = "", session=Depends(customer_session)):
         return [product_dict(p) for p in query.order_by(Product.name).limit(500)]
 
 
+@app.get("/api/public/products/{product_id}")
+def public_product(product_id: str):
+    """Read-only public product detail for Messenger links; no customer/session data."""
+    with transaction() as db:
+        product = db.query(Product).filter_by(product_id=product_id, shop_id=settings.shop_id).first()
+        if not product:
+            raise HTTPException(404, "Product not found")
+        image = db.query(ProductImage).filter_by(product_id=product_id, shop_id=settings.shop_id).first()
+        data = product_dict(product)
+        parsed_image = urlparse(image.image_url or "") if image else None
+        has_image = bool(parsed_image and parsed_image.scheme in ("http", "https") and parsed_image.netloc)
+        representative = bool(has_image and re.search(r"representative|illustration", image.alt_text or "", re.I))
+        return {**data, "image_kind": "representative" if representative else "photo" if has_image else "illustration",
+                "image_alt": image.alt_text if has_image else f"{product.name} illustration"}
+
+
 @app.get("/api/policies")
 def policies(session=Depends(customer_session)):
     with transaction() as db:
@@ -276,7 +292,7 @@ def confirm(draft_id: str, background: BackgroundTasks, payload: CheckoutConfirm
             session=Depends(customer_session)):
     contact = payload.model_dump(exclude_none=True) if payload else {}
     receipt = confirm_order(session.customer_id, session.shop_id, draft_id,
-                            phone=contact.get("phone"), address=contact.get("address"))
+                            phone=contact.get("phone"), address=contact.get("address"), name=contact.get("name"))
     background.add_task(deliver_notifications)
     return receipt
 

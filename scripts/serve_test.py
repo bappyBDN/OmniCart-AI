@@ -41,7 +41,8 @@ def main():
             sources = retriever.search("cotton tshirt", shop_id, "product", 1)
             return {"answer": "Premium Cotton T-Shirt is $19.99, with 15 in stock. [product:SKU_101]",
                     "sources": sources, "trace": [{"node": "retrieve", "detail": "Retrieved live catalog"}],
-                    "drafts": [], "degraded": False, "usage": {}, "latency_ms": 12, "route": "shopping"}
+                    "drafts": [], "degraded": False, "usage": {}, "latency_ms": 12, "route": "shopping",
+                    "show_images": agent.wants_product_media(query)}
         agent.run_agent = fake_agent
         llm.warm_models = lambda: None
         uvicorn.run(app, host="127.0.0.1", port=8001, log_level="warning")

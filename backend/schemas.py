@@ -56,8 +56,16 @@ class DraftInput(BaseModel):
 
 
 class CheckoutConfirm(BaseModel):
+    name: str | None = Field(default=None, max_length=120)
     phone: str | None = Field(default=None, max_length=30)
     address: str | None = Field(default=None, max_length=1000)
+
+    @field_validator("name")
+    @classmethod
+    def full_name(cls, value):
+        if value is not None and not value.strip():
+            raise ValueError("Enter your full name")
+        return value.strip() if value else value
 
     @field_validator("address")
     @classmethod

@@ -48,6 +48,9 @@ The development UI is http://localhost:5173 and proxies `/api` to port 8000.
 
 For Facebook Page verification, signed Messenger events, and Page subscription,
 see [Messenger setup](docs/messenger.md). The callback is **`/webhook`** (GET/POST).
+Messenger and web product cards link to `/products/{SKU}` for an exact product
+page, viewable without a session. Set `PUBLIC_SITE_URL` to your public HTTPS origin
+for Messenger buttons; Render's `RENDER_EXTERNAL_URL` is the automatic fallback.
 
 Keep your existing `.env`, or copy `.env.example` and fill in your own values.
 Set `GROQ_API_KEY` (and optional backup keys), plus `DEEPSEEK_CHAT_API_KEY` for the

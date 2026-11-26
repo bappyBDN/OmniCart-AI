@@ -1,9 +1,14 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArrowUpRight, BookOpen, Check, ChevronRight, CircleHelp, LayoutGrid, LogOut, MessageSquare, Package, PanelLeftClose, Settings2, ShieldCheck, ShoppingBag, Sparkles, UserRound, X } from 'lucide-react'
 import { api, currency } from './api'
 import Chat from './Chat'
 import Catalog from './Catalog'
 import Admin from './Admin'
+import ProductPage from './ProductPage'
+import { productIdFromPath } from './productLinks'
+import { deliveryError } from './checkoutValidation'
+import { clearSessionToken, readSessionToken, saveSessionToken } from './session'
+import './MobileCheckout.css'
 
 const navigation = [
   ['chat', MessageSquare, 'AI assistant'], ['catalog', LayoutGrid, 'Explore products'],
@@ -11,19 +16,30 @@ const navigation = [
 ]
 
 export default function App() {
-  const [page, setPage] = useState('chat')
-  const [token, setToken] = useState(() => localStorage.getItem('omnicart-session') || '')
+  const [productId, setProductId] = useState(() => productIdFromPath(window.location.pathname))
+  const [page, setPage] = useState(() => productIdFromPath(window.location.pathname) ? 'product' : 'chat')
+  const [token, setToken] = useState(readSessionToken)
   const [health, setHealth] = useState(null)
   const [profile, setProfile] = useState(null)
   const [notice, setNotice] = useState(null)
   const [mobileNav, setMobileNav] = useState(false)
   const [starting, setStarting] = useState(false)
   const [checkout, setCheckout] = useState(null)
-  const [contact, setContact] = useState({ phone: '', address: '' })
+  const [contact, setContact] = useState({ name: '', phone: '', address: '' })
+  const [checkoutError, setCheckoutError] = useState('')
   const [confirming, setConfirming] = useState(false)
   const [revision, setRevision] = useState(0)
   const notify = useCallback((message, error = false) => setNotice({ message, error }), [])
   const request = useCallback((path, options = {}) => api(path, { token, ...options }), [token])
+
+  useEffect(() => {
+    const followLocation = () => {
+      const id = productIdFromPath(window.location.pathname)
+      setProductId(id); setPage(id ? 'product' : 'chat')
+    }
+    window.addEventListener('popstate', followLocation)
+    return () => window.removeEventListener('popstate', followLocation)
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -38,7 +54,7 @@ export default function App() {
     let active = true
     request('/profile').then(value => active && setProfile(value)).catch(error => {
       if (!active) return
-      if (error.status === 401) { localStorage.removeItem('omnicart-session'); setToken('') }
+      if (error.status === 401) { clearSessionToken(); setToken('') }
       else notify(error.message, true)
     })
     return () => { active = false }
@@ -54,7 +70,7 @@ export default function App() {
     setStarting(true)
     try {
       const session = await api('/sessions', { method: 'POST' })
-      localStorage.setItem('omnicart-session', session.token)
+      if (!saveSessionToken(session.token)) notify('This browser cannot save your shopping session. Keep this tab open to access your orders.')
       setToken(session.token); setProfile(session.profile)
     } catch (error) { notify(error.message, true) }
     finally { setStarting(false) }
@@ -62,46 +78,69 @@ export default function App() {
 
   async function logout() {
     try { await request('/sessions/current', { method: 'DELETE' }) } catch { /* Local logout still succeeds. */ }
-    localStorage.removeItem('omnicart-session'); setToken(''); setProfile(null); setCheckout(null); setContact({ phone: '', address: '' })
+    clearSessionToken(); setToken(''); setProfile(null); setCheckout(null); setContact({ name: '', phone: '', address: '' })
   }
 
   function openCheckout(draft) {
     setContact({
+      name: draft.name || profile?.name || '',
       phone: draft.phone || profile?.phone || '',
       address: draft.address || profile?.address || '',
     })
+    setCheckoutError('')
     setCheckout(draft)
+  }
+
+  async function reviewProduct(product, quantity, details) {
+    const error = deliveryError(details)
+    if (error) throw new Error(error)
+    let sessionToken = token
+    if (!sessionToken) {
+      const session = await api('/sessions', { method: 'POST' })
+      sessionToken = session.token
+      if (!saveSessionToken(sessionToken)) notify('This browser cannot save your shopping session. Keep this tab open to access your orders.')
+      setToken(sessionToken); setProfile(session.profile)
+    }
+    const updated = await api('/profile', { token: sessionToken, method: 'PATCH', body: details })
+    setProfile(updated)
+    const draft = await api('/checkout', { token: sessionToken, method: 'POST', body: { product_id: product.product_id, quantity } })
+    if (draft.error === 'insufficient_stock') throw new Error(`Only ${draft.available ?? 0} units remain. Update the quantity and review again.`)
+    if (draft.error) throw new Error(draft.message || 'Checkout could not be prepared. Nothing has been ordered.')
+    openCheckout(draft)
+    return draft
   }
 
   async function prepare(product, quantity) {
     try {
       const draft = await request('/checkout', { method: 'POST', body: { product_id: product.product_id, quantity } })
-      if (draft.error === 'profile_incomplete') { setPage('profile'); notify(`Please complete: ${draft.missing.join(', ')}.`, true); return }
+      if (draft.error === 'profile_incomplete') { navigate('profile'); notify(`Please complete: ${draft.missing.join(', ')}.`, true); return }
       if (draft.error) { notify(`Only ${draft.available ?? 0} items are available.`, true); return }
       openCheckout(draft)
     } catch (error) { notify(error.message, true) }
   }
 
   async function confirm() {
+    const error = deliveryError(contact)
+    if (error) { setCheckoutError(error); return }
+    const name = contact.name.trim()
     const phone = contact.phone.trim()
     const address = contact.address.trim()
-    if (!/^[0-9+()\-\s]{7,30}$/.test(phone) || phone.replace(/\D/g, '').length < 7) {
-      notify('Enter a valid phone number (7–15 digits).', true); return
-    }
-    if (address.length < 12) { notify('Enter the complete delivery address (house, road, area, city).', true); return }
+    setCheckoutError('')
     setConfirming(true)
     try {
       const receipt = await request(`/checkout/${checkout.draft_id}/confirm`, {
-        method: 'POST', body: { phone, address },
+        method: 'POST', body: { name, phone, address },
       })
       notify(`${receipt.reference} received. Email: ${receipt.email_status.replaceAll('_', ' ')}.`)
-      setCheckout(null); setPage('orders'); setRevision(value => value + 1)
-    } catch (error) { notify(error.message, true) }
+      setCheckout(null); navigate('orders'); setRevision(value => value + 1)
+    } catch (error) { setCheckoutError(error.message); notify(error.message, true) }
     finally { setConfirming(false) }
   }
 
   const navigate = next => {
     if (next === 'admin') { window.location.assign(import.meta.env.DEV ? '/admin.html' : '/admin'); return }
+    if (productIdFromPath(window.location.pathname)) window.history.pushState({}, '', '/')
+    setProductId(null)
     setPage(next); setMobileNav(false)
   }
   return <div className="app-shell">
@@ -114,9 +153,9 @@ export default function App() {
     </aside>
     {mobileNav && <button className="nav-scrim" aria-label="Close navigation" onClick={() => setMobileNav(false)} />}
     <main className="main-content">
-      <header className="topbar"><div className="breadcrumb"><button className="icon-button mobile-toggle" aria-label="Toggle navigation" onClick={() => setMobileNav(!mobileNav)}><PanelLeftClose size={21} /></button><span>Workspace</span><ChevronRight size={13} /><strong>{navigation.find(item => item[0] === page)?.[2] || 'Administration'}</strong></div><div className="topbar-right"><span className={`connection ${health ? '' : 'offline'}`}><i />{health ? 'System online' : 'Connecting…'}</span><span className="topbar-divider" /><span className="store-name">{health?.shop_name || 'OmniCart'}</span><ShieldCheck size={18} className="muted" /></div></header>
+      <header className="topbar"><div className="breadcrumb"><button className="icon-button mobile-toggle" aria-label="Toggle navigation" onClick={() => setMobileNav(!mobileNav)}><PanelLeftClose size={21} /></button><span>Workspace</span><ChevronRight size={13} /><strong>{navigation.find(item => item[0] === page)?.[2] || (page === 'product' ? 'Product details' : 'Administration')}</strong></div><div className="topbar-right"><span className={`connection ${health ? '' : 'offline'}`}><i />{health ? 'System online' : 'Connecting…'}</span><span className="topbar-divider" /><span className="store-name">{health?.shop_name || 'OmniCart'}</span><ShieldCheck size={18} className="muted" /></div></header>
       <div className="page-content">
-        {page === 'admin' ? <Admin notify={notify} /> : !token ? <section className="welcome-card"><span className="eyebrow"><Sparkles size={14} /> YOUR PERSONAL SHOPPING COPILOT</span><h1>Good finds start with<br />a great conversation<span>.</span></h1><p>Explore the store, get answers grounded in real information,<br />and check out with confidence. English or বাংলা — your choice.</p><button className="primary" disabled={starting || !health?.shop_ready} onClick={start}>{starting ? 'Starting your session…' : 'Start shopping'} <ArrowUpRight size={17} /></button><div className="welcome-benefits"><span><ShieldCheck size={16} /> Private guest session</span><span><BookOpen size={16} /> Source-backed answers</span></div><p className="small muted">Your browser stores a private access token. No password or email is needed to begin.</p></section> : <>
+        {page === 'product' ? <ProductPage productId={productId} token={token} profile={profile} onReview={reviewProduct} /> : page === 'admin' ? <Admin notify={notify} /> : !token ? <section className="welcome-card"><span className="eyebrow"><Sparkles size={14} /> YOUR PERSONAL SHOPPING COPILOT</span><h1>Good finds start with<br />a great conversation<span>.</span></h1><p>Explore the store, get answers grounded in real information,<br />and check out with confidence. English or বাংলা — your choice.</p><button className="primary" disabled={starting || !health?.shop_ready} onClick={start}>{starting ? 'Starting your session…' : 'Start shopping'} <ArrowUpRight size={17} /></button><div className="welcome-benefits"><span><ShieldCheck size={16} /> Private guest session</span><span><BookOpen size={16} /> Source-backed answers</span></div><p className="small muted">Your browser stores a private access token. No password or email is needed to begin.</p></section> : <>
           {page === 'chat' && <Chat key={token} request={request} health={health} profile={profile} setProfile={setProfile} notify={notify} onCheckout={openCheckout} onNavigate={navigate} />}
           {page === 'catalog' && <Catalog request={request} notify={notify} onPrepare={prepare} revision={revision} />}
           {page === 'orders' && <Orders request={request} notify={notify} revision={revision} />}
@@ -128,15 +167,31 @@ export default function App() {
     </main>
     {notice && <div className={`toast ${notice.error ? 'error' : ''}`} role="status">{notice.error ? <CircleHelp size={18} /> : <Check size={18} />}<span>{notice.message}</span><button className="icon-button" aria-label="Dismiss notification" onClick={() => setNotice(null)}><X size={16} /></button></div>}
     {checkout && <CheckoutModal checkout={checkout} contact={contact} setContact={setContact}
-      confirming={confirming} onClose={() => setCheckout(null)} onConfirm={confirm} />}
+      error={checkoutError} confirming={confirming} onClose={() => setCheckout(null)} onConfirm={confirm} />}
   </div>
 }
 
-function CheckoutModal({ checkout, contact, setContact, confirming, onClose, onConfirm }) {
-  const phoneDigits = contact.phone.replace(/\D/g, '')
-  const ready = phoneDigits.length >= 7 && phoneDigits.length <= 15 && contact.address.trim().length >= 12
+function CheckoutModal({ checkout, contact, setContact, error, confirming, onClose, onConfirm }) {
+  const dialogRef = useRef(null)
+  const ready = !deliveryError(contact)
+  useEffect(() => {
+    const previous = document.activeElement
+    const overflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    dialogRef.current?.focus()
+    return () => { document.body.style.overflow = overflow; if (previous?.isConnected) previous.focus?.() }
+  }, [])
+  function keyboard(event) {
+    if (event.key === 'Escape' && !confirming) onClose()
+    if (event.key !== 'Tab') return
+    const fields = [...dialogRef.current.querySelectorAll('button:not(:disabled), input:not(:disabled), textarea:not(:disabled)')]
+    const first = fields[0], last = fields[fields.length - 1]
+    if (!first) { event.preventDefault(); return }
+    if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) { event.preventDefault(); last.focus() }
+    else if (!event.shiftKey && (document.activeElement === last || document.activeElement === dialogRef.current)) { event.preventDefault(); first.focus() }
+  }
   return <div className="modal-backdrop">
-    <section className="modal" role="dialog" aria-modal="true" aria-labelledby="checkout-heading">
+    <section className="modal" ref={dialogRef} tabIndex={-1} onKeyDown={keyboard} role="dialog" aria-modal="true" aria-labelledby="checkout-heading">
       <button className="modal-close icon-button" aria-label="Close checkout" disabled={confirming} onClick={onClose}><X /></button>
       <span className="large-icon"><ShoppingBag /></span>
       <h2 id="checkout-heading">One last look.</h2>
@@ -148,6 +203,10 @@ function CheckoutModal({ checkout, contact, setContact, confirming, onClose, onC
       <form className="checkout-form" onSubmit={event => { event.preventDefault(); if (ready) onConfirm() }}>
         <fieldset className="checkout-contact" disabled={confirming}>
           <legend>Delivery details</legend>
+          <label>Full name
+            <input name="name" autoComplete="name" required maxLength={120}
+              value={contact.name} onChange={event => setContact({ ...contact, name: event.target.value })} />
+          </label>
           <label>Phone number
             <input name="phone" type="tel" autoComplete="tel" inputMode="tel" required
               minLength={7} maxLength={30} placeholder="e.g. 01712 345678"
@@ -160,10 +219,11 @@ function CheckoutModal({ checkout, contact, setContact, confirming, onClose, onC
           </label>
           <p className="small muted">Used for this delivery and saved to your profile.</p>
         </fieldset>
+        {error && <p className="product-order-error" role="alert">{error}</p>}
         <button type="submit" className="primary full-width" disabled={confirming || !ready}>
           {confirming ? 'Confirming…' : 'Confirm order'}<Check size={17} />
         </button>
-        {!ready && <p className="checkout-hint">Enter a phone number and full delivery address to continue.</p>}
+        {!ready && <p className="checkout-hint">Enter a name, valid phone number and full delivery address to continue.</p>}
       </form>
       <p className="small muted center">No online payment will be collected.</p>
     </section>

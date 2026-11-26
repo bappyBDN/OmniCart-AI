@@ -27,6 +27,14 @@ def no_models(monkeypatch):
     monkeypatch.setattr(agent, 'chat_model', fail)
 
 
+@pytest.fixture(autouse=True)
+def isolated_image_only_origin(monkeypatch):
+    # These tests exercise the backwards-compatible native-image fallback, not
+    # deployment-specific clickable cards. Never inherit a real Render origin.
+    monkeypatch.delenv('PUBLIC_SITE_URL', raising=False)
+    monkeypatch.delenv('RENDER_EXTERNAL_URL', raising=False)
+
+
 def source_for(product_id='SKU_101'):
     with transaction() as db:
         return agent.catalog_product_source(product_dict(db.get(Product, product_id)))

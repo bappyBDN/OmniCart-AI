@@ -42,6 +42,35 @@ test('shopping assistant returns an answer with inspectable sources', async ({ p
   expect(errors).toEqual([])
 })
 
+test('Messenger SKU links open the exact product without a shopping session', async ({ page, request }) => {
+  await page.goto('/products/SKU_183')
+  await expect(page.getByRole('heading', { name: 'Batteries Pack', exact: true })).toBeVisible()
+  await expect(page.locator('.product-detail-price')).toContainText('$14.99')
+  await expect(page.locator('.product-detail-copy').getByText('80 in stock', { exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Premium Cotton T-Shirt', exact: true })).toHaveCount(0)
+  expect(await page.evaluate(() => localStorage.getItem('omnicart-session'))).toBeNull()
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Batteries Pack', exact: true })).toBeVisible()
+  await page.goto('/products/SKU_999999')
+  await expect(page.getByRole('heading', { name: 'Product unavailable', exact: true })).toBeVisible()
+  const privateProduct = await request.get('/api/public/products/OTHER_SECRET')
+  expect(privateProduct.status()).toBe(404)
+})
+
+test('web chat View product opens the cited SKU', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Start shopping' }).click()
+  await page.getByRole('textbox', { name: 'Message OmniCart' }).fill('Show me cotton shirts')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  await page.getByRole('link', { name: 'View product', exact: true }).first().click()
+  await expect(page).toHaveURL(/\/products\/SKU_101$/)
+  await expect(page.getByRole('heading', { name: 'Premium Cotton T-Shirt', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Explore products', exact: true }).click()
+  await expect(page).toHaveURL('http://127.0.0.1:8001/')
+  await page.goBack()
+  await expect(page.getByRole('heading', { name: 'Premium Cotton T-Shirt', exact: true })).toBeVisible()
+})
+
 test('profile, catalog and user-confirmed checkout work end to end', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Start shopping' }).click()
@@ -134,4 +163,79 @@ test('support desk keeps investigation notes private and resumes with a resoluti
   await admin.getByLabel('Resolution note').fill('Delivery team reviewed the case and will follow up.')
   await admin.getByRole('button', { name: 'Resolve and hand back to AI' }).click()
   await expect(page.getByText('Human support is active.', { exact: false })).not.toBeVisible({ timeout: 10000 })
+})
+
+test.describe('phone product checkout', () => {
+  test.use({ viewport: { width: 360, height: 780 }, isMobile: true, hasTouch: true })
+
+  test('small phone layout keeps form controls readable and within the screen', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 640 })
+    await page.goto('/products/SKU_183#order-form')
+    await expect(page.getByRole('heading', { name: 'Delivery details', exact: true })).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+    expect(await page.getByLabel('Phone number', { exact: true }).evaluate(element => parseFloat(getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(16)
+    expect((await page.getByRole('link', { name: 'Order this product', exact: true }).boundingBox()).height).toBeGreaterThanOrEqual(44)
+  })
+
+  test('a Messenger order link supports editable delivery details and explicit confirmation', async ({ page, request }) => {
+    const stock = (await (await request.get('/api/public/products/SKU_183')).json()).stock_count
+    await page.goto('/products/SKU_183#order-form')
+    await expect(page.getByRole('heading', { name: 'Delivery details', exact: true })).toBeVisible()
+    expect(await page.evaluate(() => localStorage.getItem('omnicart-session'))).toBeNull()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+    await page.getByLabel('Full name', { exact: true }).fill('Mobile Shopper')
+    await page.getByLabel('Phone number', { exact: true }).fill('01712345678')
+    await page.getByLabel('Full delivery address', { exact: true }).fill('House 12, Road 4, Dhaka 1205')
+    await page.getByRole('button', { name: 'Increase quantity', exact: true }).click()
+    const review = page.getByRole('button', { name: 'Review checkout', exact: true })
+    expect((await review.boundingBox()).height).toBeGreaterThanOrEqual(44)
+    const draftResponse = page.waitForResponse(response => response.url().endsWith('/api/checkout') && response.request().method() === 'POST')
+    await review.click()
+    const draft = await (await draftResponse).json()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible()
+    await expect(dialog).toContainText('$29.98')
+    await expect(dialog.getByLabel('Full name', { exact: true })).toHaveValue('Mobile Shopper')
+    const token = await page.evaluate(() => localStorage.getItem('omnicart-session'))
+    const headers = { Authorization: `Bearer ${token}` }
+    expect(await (await request.get('/api/orders', { headers })).json()).toEqual([])
+    expect((await dialog.boundingBox()).height).toBeLessThanOrEqual(780)
+    await dialog.getByLabel('Full name', { exact: true }).fill('Edited Mobile Shopper')
+    await dialog.getByLabel('Phone number', { exact: true }).fill('01898765432')
+    await dialog.getByRole('textbox', { name: 'Full delivery address', exact: true }).fill('House 18, Road 6, Dhaka 1207')
+    await dialog.getByRole('button', { name: 'Confirm order', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Every order, in one place.' })).toBeVisible()
+    const orders = await (await request.get('/api/orders', { headers })).json()
+    expect(orders).toHaveLength(1)
+    expect(orders[0].product_id).toBe('SKU_183')
+    const profile = await (await request.get('/api/profile', { headers })).json()
+    expect(profile.name).toBe('Edited Mobile Shopper')
+    expect(profile.phone).toBe('01898765432')
+    expect(profile.address).toBe('House 18, Road 6, Dhaka 1207')
+    const repeated = await request.post(`/api/checkout/${draft.draft_id}/confirm`, { headers, data: {} })
+    expect((await repeated.json()).order_id).toBe(orders[0].order_id)
+    expect((await (await request.get('/api/public/products/SKU_183')).json()).stock_count).toBe(stock - 2)
+  })
+
+  test('the form stays usable when an in-app browser blocks persistent storage', async ({ page }) => {
+    await page.addInitScript(() => {
+      for (const method of ['getItem', 'setItem', 'removeItem']) {
+        const original = Storage.prototype[method]
+        Storage.prototype[method] = function (key, ...args) {
+          if (key === 'omnicart-session') throw new DOMException('Blocked', 'SecurityError')
+          return original.call(this, key, ...args)
+        }
+      }
+    })
+    await page.goto('/products/SKU_183#order-form')
+    await page.getByLabel('Full name', { exact: true }).fill('In-app Shopper')
+    await page.getByLabel('Phone number', { exact: true }).fill('01712345678')
+    await page.getByLabel('Full delivery address', { exact: true }).fill('House 12, Road 4, Dhaka 1205')
+    await page.getByRole('button', { name: 'Review checkout', exact: true }).click()
+    await expect(page.getByRole('dialog')).toBeVisible()
+    await expect(page.getByRole('dialog').getByLabel('Full name', { exact: true })).toHaveValue('In-app Shopper')
+    // Opening a review still does not place an order.
+    await page.getByRole('button', { name: 'Close checkout', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Delivery details', exact: true })).toBeVisible()
+  })
 })

@@ -68,7 +68,8 @@ def draft_dict(db, draft):
     return {"draft_id": draft.draft_id, "product_id": draft.product_id, "product_name": product.name if product else "Unavailable",
             "quantity": draft.quantity, "unit_price": float(draft.unit_price),
             "total_price": float(money(draft.unit_price) * draft.quantity), "expires_at": draft.expires_at.isoformat(),
-            "confirmation_required": draft.order_id is None, "order_id": draft.order_id,
+             "confirmation_required": draft.order_id is None, "order_id": draft.order_id,
+             "name": customer.name if customer else None,
             "phone": customer.phone_number if customer else None,
             "address": customer.address if customer else None,
             "missing_contact": [key for key, value in (("phone", customer.phone_number if customer else None),
@@ -107,11 +108,11 @@ def prepare_order(customer_id, shop_id, product_id, quantity, *, automated=False
         return draft_dict(db, draft)
 
 
-def confirm_order(customer_id, shop_id, draft_id, phone=None, address=None):
+def confirm_order(customer_id, shop_id, draft_id, phone=None, address=None, name=None):
     contact = {}
-    if phone is not None or address is not None:
+    if phone is not None or address is not None or name is not None:
         try:
-            contact = ProfileInput(phone=phone, address=address).model_dump(exclude_none=True)
+            contact = ProfileInput(name=name, phone=phone, address=address).model_dump(exclude_none=True)
         except ValidationError:
             raise HTTPException(422, "Enter a valid phone number and full delivery address") from None
     with transaction() as db:

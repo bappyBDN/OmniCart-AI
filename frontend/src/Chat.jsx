@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { ArrowRight, ArrowUp, ArrowUpRight, BookOpen, Bot, CheckCheck, ChevronDown, CircleHelp, Clock3, FileCheck2, Headset, ImagePlus, Layers3, LoaderCircle, Mic, Package, Search, ShieldCheck, Sparkles, Square, X } from 'lucide-react'
 import { currency } from './api'
+import { productPath } from './productLinks'
 
 const starters = [
   { icon: Search, title: 'Find something you’ll love', text: 'Show me cotton shirts under $30', color: 'green' },
@@ -168,7 +169,7 @@ function ShoppingIcon() { return <Package size={20} /> }
 export function ProductCards({ sources, onNavigate }) {
   const products = (sources || []).filter(source => source.kind === 'product' && source.data).slice(0, 4)
   if (!products.length) return null
-  return <div className="product-cards">{products.map(source => <article className="chat-product" key={source.id}><div className="chat-product-image"><img src={source.data.image_url} alt={`${source.title} product image`} loading="lazy" /><span>{source.data.category} representative image</span></div><div className="chat-product-body"><strong>{source.data.name}</strong><p>{currency(source.data.effective_price)} · {source.data.stock_count ? `${source.data.stock_count} in stock` : 'Out of stock'}</p><small>{source.graph?.relation === 'alternative' ? 'Similar in-stock alternative' : 'Similar catalogue match'}</small>{onNavigate && <button className="text-button" onClick={() => onNavigate('catalog')}>Explore catalogue <ArrowRight size={12} /></button>}</div></article>)}</div>
+  return <div className="product-cards">{products.map(source => <article className="chat-product" key={source.id}><div className="chat-product-image"><img src={source.data.image_url} alt={`${source.title} product image`} loading="lazy" /><span>{source.data.category} representative image</span></div><div className="chat-product-body"><strong>{source.data.name}</strong><p>{currency(source.data.effective_price)} · {source.data.stock_count ? `${source.data.stock_count} in stock` : 'Out of stock'}</p><small>{source.graph?.relation === 'alternative' ? 'Similar in-stock alternative' : 'Similar catalogue match'}</small><a className="text-button" href={productPath(source.data.product_id || source.id.replace(/^product:/, ''))}>View product <ArrowRight size={12} /></a></div></article>)}</div>
 }
 
 export function SourceList({ sources }) {

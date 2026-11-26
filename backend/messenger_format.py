@@ -10,6 +10,7 @@ from backend.database import transaction
 from backend.language import is_bangla
 from backend.media import public_image_url
 from backend.records import ProductImage
+from backend.product_links import public_product_url, public_order_url
 from backend.retrieval import product_dict
 from models import Product
 
@@ -77,7 +78,8 @@ def format_messenger_response(response, shop_id, query=""):
             image = by_image.get(product_id)
             url = public_image_url(image.image_url) if image else None
             if show_images and url:
-                products.append({**data, "image_url": url, "alt_text": image.alt_text})
+                products.append({**data, "image_url": url, "alt_text": image.alt_text,
+                                 "product_url": public_product_url(product_id), "order_url": public_order_url(product_id)})
                 if re.search(r"representative|illustration", image.alt_text or "", re.I):
                     representative.append(data["name"])
             elif explicit_photo:
@@ -93,4 +95,8 @@ def format_messenger_response(response, shop_id, query=""):
         note = (f"{', '.join(representative)}-এর ছবিটি প্রতিনিধিত্বমূলক; হুবহু এই SKU-এর ছবি নাও হতে পারে।" if is_bangla(query) else
                 f"The photo for {', '.join(representative)} is representative and may not show the exact SKU.")
         text = (text + "\n" + note).strip()
+    order_links = [f"{product['name']}: {product['order_url']}" for product in products if product.get("order_url")]
+    if order_links:
+        heading = "পণ্য দেখুন ও অর্ডারের ফর্ম পূরণ করুন:" if is_bangla(query) else "View product & fill in the order form:"
+        text = (text + "\n\n" + heading + "\n" + "\n".join(order_links)).strip()
     return MessengerReply(text, products)

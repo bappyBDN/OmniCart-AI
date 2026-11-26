@@ -11,6 +11,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response
 
 from backend.config import ROOT
 from backend.media import public_image_url
+from backend.product_links import public_product_url, public_order_url
 
 load_dotenv(ROOT / ".env")
 VERIFY_TOKEN = os.getenv("VERIFY_TOKEN", "omnichat_bappys_4001-try").strip()
@@ -145,6 +146,30 @@ async def send_product_image(sender_id: str, image_url: str):
     if not url:
         raise MessengerConfigurationError("Product image must use a public HTTPS photography URL")
     await _send_messages(sender_id, [{"attachment": {"type": "image", "payload": {"url": url, "is_reusable": True}}}])
+
+
+async def send_product_cards(sender_id: str, products: list[dict]):
+    """Native image cards with SKU-specific website buttons (no postback required)."""
+    elements = []
+    for product in products[:5]:
+        url = public_product_url(product["product_id"])
+        image = public_image_url(product.get("image_url"))
+        if not url or not image:
+            raise MessengerConfigurationError("Product cards need a public HTTPS site origin and image URL")
+        subtitle = f"${product['effective_price']:.2f} USD · {product['stock_count']} in stock"
+        if "representative" in (product.get("alt_text") or "").lower():
+            subtitle += " · Representative image"
+        elements.append({
+            "title": str(product["name"])[:80], "subtitle": subtitle[:80], "image_url": image,
+            "default_action": {"type": "web_url", "url": url},
+            "buttons": [{"type": "web_url", "title": "View product", "url": url},
+                        {"type": "web_url", "title": "Order now", "url": public_order_url(product["product_id"]),
+                         "webview_height_ratio": "full"}],
+        })
+    if elements:
+        await _send_messages(sender_id, [{"attachment": {"type": "template", "payload": {
+            "template_type": "generic", "elements": elements,
+        }}}])
 
 
 async def _send_messages(sender_id, messages):

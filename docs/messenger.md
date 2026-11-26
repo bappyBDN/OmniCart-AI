@@ -9,6 +9,7 @@ The existing FastAPI application exposes:
 | GET | `/webhook` | Meta's plain-text verification challenge |
 | POST | `/webhook` | Signed events, immediate `{"status":"ok"}`, then background processing |
 | GET | `/app` | Customer storefront alias (existing links still work) |
+| GET | `/products/{SKU}` | Public page for exactly one product (no session required) |
 | GET | `/admin` | Operations console |
 
 Implementation: `backend/messenger.py`, `backend/messenger_service.py`.
@@ -106,8 +107,9 @@ when you explicitly pass `--subscribe`.
   including across workers. Do not delete deduplication rows while Meta might retry.
 - Replies use `POST https://graph.facebook.com/v21.0/me/messages`, a Bearer token,
   `messaging_type=RESPONSE`, `http2=False`, a 15-second timeout and 2,000-character
-  text chunks. Cited product photos follow the cleaned text as native image
-  attachments; details are below. Respect
+  text chunks. Cited product photos follow the cleaned text as clickable product
+  cards (or native image attachments if no public site origin is configured).
+  Details are below. Respect
   Meta's messaging window and policies; this does not enable unsolicited messaging.
 - No automatic checkout confirmation is possible through text. Drafts remain
   proposals. Admin-console replies are not yet forwarded to Messenger.
@@ -153,7 +155,9 @@ when you explicitly pass `--subscribe`.
   citations and Markdown, then reads `Product` plus `api_product_images` for the
   current shop. It never uses a model-authored or historical image URL. The stored
   web response is unchanged, so the website retains its citations and UI cards.
-- `send_product_image` in `backend/messenger.py` sends each photo after the text:
+- The image-only fallback, `send_product_image` in `backend/messenger.py`, sends
+  each photo after the text. With a public origin configured, `send_product_cards`
+  sends a clickable Generic Template instead (see the next section):
 
   ```json
   {
@@ -181,6 +185,71 @@ when you explicitly pass `--subscribe`.
 - If text succeeds but an image fails, the event is marked failed and **not**
   automatically replayed, avoiding duplicate text/images. Reconcile it manually
   before replay. All existing Meta permission/signature requirements still apply.
+
+## Clickable Messenger product cards
+
+To open the **exact SKU**, Messenger sends a Generic Template with the stored
+photo, current merchandise price/stock, and a **View product** web button. Clicking
+the image/title opens the same URL. For example, Batteries Pack links to
+`https://YOUR-PUBLIC-DOMAIN/products/SKU_183`, not the entire catalog or an image URL.
+The web chat's **View product** link uses the same SKU route.
+
+Each card also has **Order now**, opening the same product at `#order-form` in a
+full-height Messenger webview. The plain chat text includes the order-form URL as
+well, so a customer can open or copy it even without using the card button.
+
+Configure the site's public HTTPS **origin**, without a path, query or credentials:
+
+```dotenv
+PUBLIC_SITE_URL=https://YOUR-PUBLIC-DOMAIN
+```
+
+Render's `RENDER_EXTERNAL_URL` is used automatically when `PUBLIC_SITE_URL` is
+empty. Set `PUBLIC_SITE_URL` explicitly for a custom domain or a non-Render host.
+Restart after changing environment variables. No URL is built from inbound Host
+headers or model-authored links. Without a valid origin, existing image-only
+delivery continues and a sanitized warning explains the missing card configuration.
+
+The destination is a real, refreshable React product page. Its read-only endpoint,
+`GET /api/public/products/{SKU}`, exposes only the configured shop's product facts
+and image labels. Another shop's SKU or a missing SKU returns 404; it never silently
+shows a different product. Visitors do not need an account/session to view it.
+Starting a shopping session and reviewing checkout remain explicit actions; no
+session secrets or Messenger sender IDs appear in the URL, and opening the page
+does not create, reserve or confirm an order.
+
+### Phone-friendly delivery form and checkout
+
+`/products/{SKU}#order-form` contains a responsive form with a quantity stepper,
+name, phone number and full delivery address. Mobile inputs use autocomplete and
+the appropriate phone/numeric keyboards, at least 44px controls and 16px input
+text. A sticky product/price action opens the form, and **Copy order link** shares
+only the SKU URL—never a phone number, address, access token or Messenger PSID.
+
+The flow is **fill/edit details → Review checkout → edit if needed → Confirm
+order**. A guest shopping session is created only after the customer submits a
+valid review request. Details are saved to that private session; quantity, live
+price and stock are checked by the server. The confirmation screen allows editing
+name, phone and address and remains scrollable with a phone keyboard open.
+Confirmation applies edited contact details and stock/order changes transactionally.
+Retries of the same confirmed draft do not create another order or overwrite its
+details. There is no automatic payment collection; merchandise totals exclude
+unconfigured delivery/payment fees. Changes after confirmation should go through
+shop support, not this unconfirmed-checkout form.
+
+Some in-app browsers block persistent storage. Checkout can continue using an
+in-memory private session, but the customer must keep that tab open to retain
+access to its order history. Browsers are not given session tokens in product
+links, and static links do not authenticate a web visitor as a Messenger sender.
+Real-device webview behavior and Meta Page permissions still need deployment checks.
+
+Cards use the **saved** image for that SKU. They cannot establish that a photo is
+visually accurate. In particular, the demo category photos can be wrong for an
+individual SKU (such as headphones on Batteries Pack). Replace those URLs with
+licensed, exact product photography in **Admin → Catalogue → Image**. Until then,
+representative images remain labeled as such; no production image records are
+silently overwritten. Broken images on the product page show a photo-unavailable
+message instead of pretending a different product's image is correct.
 
 ## Troubleshooting `LocalProtocolError`
 

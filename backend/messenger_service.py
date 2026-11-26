@@ -16,7 +16,7 @@ from starlette.concurrency import run_in_threadpool
 
 from backend.config import settings
 from backend.database import transaction
-from backend.messenger import send_product_image, send_text_reply
+from backend.messenger import send_product_cards, send_product_image, send_text_reply
 from backend.messenger_format import format_messenger_response
 from backend.records import MessengerContact, MessengerEvent
 from backend.schemas import ChatInput
@@ -99,8 +99,13 @@ async def process_message(page_id: str, sender_id: str, message_id: str, text: s
         reply = await run_in_threadpool(format_messenger_response, response, settings.shop_id, text)
         if reply.text:
             await send_text_reply(sender_id, reply.text)
+        linked = [product for product in reply.products if product.get("product_url")]
+        if linked:
+            await send_product_cards(sender_id, linked)
         for product in reply.products:
-            await send_product_image(sender_id, product["image_url"])
+            if not product.get("product_url"):
+                log.warning("Messenger product link unavailable; configure PUBLIC_SITE_URL or RENDER_EXTERNAL_URL")
+                await send_product_image(sender_id, product["image_url"])
         await run_in_threadpool(mark_event, page_id, message_id, "sent" if reply.text or reply.products else "human_handoff")
         try:
             await notifications()

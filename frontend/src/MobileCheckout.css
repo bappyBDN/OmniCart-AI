@@ -1,0 +1,7 @@
+.modal-backdrop { padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom)); }
+.modal-backdrop .modal { width: min(100%, 480px); max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); overflow-y: auto; overscroll-behavior: contain; }
+.modal-backdrop .modal input, .modal-backdrop .modal textarea { min-height: 48px; padding: 12px; font-size: 16px; border: 1px solid #cfdbd3; border-radius: 8px; }
+.modal-backdrop .modal textarea { min-height: 96px; }
+.modal-backdrop .modal .primary { min-height: 48px; }
+.modal-backdrop .modal .modal-close { width: 44px; height: 44px; }
+@media (max-width: 720px) { .modal-backdrop .modal { padding: 24px 20px; border-radius: 16px; } }

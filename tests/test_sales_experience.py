@@ -164,7 +164,7 @@ def test_llm_receives_eight_recent_turns_and_original_followup(store, monkeypatc
     assert captured[0][1].content == 'recent-4'
     assert captured[0][-2].content == 'recent-19'
     assert captured[0][-1].content == 'Premium Cotton T-Shirt details'
-    assert 'warm, capable shop assistant' in captured[0][0].content
+    assert "friendly sales assistant" in captured[0][0].content
 
 
 def test_web_remembers_recommendation_across_greeting_and_fetches_fresh_stock(client, headers, monkeypatch):
@@ -318,6 +318,7 @@ def test_native_image_attachment_uses_http1_stripped_token_and_timeout(monkeypat
 
 
 def test_messenger_persists_focus_then_sends_clean_text_before_native_image(store, monkeypatch, no_models):
+    monkeypatch.setenv('MESSENGER_PRODUCT_DISPLAY', 'image')
     attach_photo()
     delivered = []
 
@@ -358,6 +359,7 @@ def test_messenger_persists_focus_then_sends_clean_text_before_native_image(stor
 
 
 def test_image_failure_does_not_replay_an_already_delivered_text(store, monkeypatch, no_models):
+    monkeypatch.setenv('MESSENGER_PRODUCT_DISPLAY', 'image')
     attach_photo()
     # No legacy memory is required: the incoming message explicitly names a SKU.
     send_text = AsyncMock()

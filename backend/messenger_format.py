@@ -4,7 +4,7 @@ Never mutate the canonical ChatTurn response: the web still needs its citations
 and structured sources. Only trusted SQL image records are sent to Meta.
 """
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from backend.database import transaction
 from backend.language import is_bangla
@@ -20,7 +20,8 @@ SOURCE_TAG = re.compile(r"\[\s*(?:source_id:\s*)?(?:product|policy|knowledge|cat
 @dataclass
 class MessengerReply:
     text: str
-    products: list[dict]
+    products: list[dict]           # products with a real public photo (native image mode)
+    cards: list[dict] = field(default_factory=list)  # every cited product, for Generic Template cards
 
 
 def parse_messenger_text(answer):
@@ -69,13 +70,15 @@ def format_messenger_response(response, shop_id, query=""):
                                                ProductImage.product_id.in_(product_ids)).all()
         by_id = {row.product_id: product_dict(row) for row in rows}
         by_image = {image.product_id: image for image in images}
-        products, missing, representative = [], [], []
+        products, missing, representative, cards = [], [], [], []
         for product_id in product_ids:
             data = by_id.get(product_id)
             if not data:
                 continue
             image = by_image.get(product_id)
             url = public_image_url(image.image_url) if image else None
+            if show_images:
+                cards.append({**data, "image_url": url})
             if show_images and url:
                 products.append({**data, "image_url": url, "alt_text": image.alt_text})
                 if re.search(r"representative|illustration", image.alt_text or "", re.I):
@@ -93,4 +96,4 @@ def format_messenger_response(response, shop_id, query=""):
         note = (f"{', '.join(representative)}-এর ছবিটি প্রতিনিধিত্বমূলক; হুবহু এই SKU-এর ছবি নাও হতে পারে।" if is_bangla(query) else
                 f"The photo for {', '.join(representative)} is representative and may not show the exact SKU.")
         text = (text + "\n" + note).strip()
-    return MessengerReply(text, products)
+    return MessengerReply(text, products, cards)

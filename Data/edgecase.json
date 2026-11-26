@@ -1,0 +1,362 @@
+[
+  {
+    "id": "size_001",
+    "category": "womenswear_size_fit",
+    "intent": "body_and_hip_fitting",
+    "queries": {
+      "bn": "আমার বডি সাইজ ৩৮, কিন্তু হিপ একটু ভারী। কোন সাইজ নেব?",
+      "en": "My bust size is 38, but I have heavier hips. Which size should I choose?",
+      "banglish": "Amar body size 38, kintu hip ektu bhari. Kon size nibo?"
+    },
+    "responses": {
+      "bn": "বডির তুলনায় হিপ ভারী হলে ৪০ (L) সাইজটি নেওয়া সবচেয়ে ভালো হবে। এতে সাইড স্লিট বা কোমরের অংশে টাইট হবে না; প্রয়োজনে বডির দিকটা সামান্য চেপে অল্টার করে নিতে পারবেন।",
+      "en": "If your hips are fuller compared to your bust, we recommend choosing size 40 (L). This prevents tightness around the waist and side slits, and you can easily alter the upper body if needed.",
+      "banglish": "Body-r tulonay hip bhari hole 40 (L) size-ti neya shobcheye bhalo hobe. Ete komor ba side slit-e tight hobe na; proyojone body-r dikta shamanyo chepe alter kore nite parben."
+    }
+  },
+  {
+    "id": "size_002",
+    "category": "womenswear_size_fit",
+    "intent": "inner_fabric_margin",
+    "queries": {
+      "bn": "জামার ভেতরে কি এক্সট্রা কাপড় দেওয়া আছে? টাইট হলে লুজ করা যাবে?",
+      "en": "Is there extra fabric margin inside the dress to loosen it if needed?",
+      "banglish": "Jamar bhetore ki extra kapor deya ase? Tight hole loose kora jabe?"
+    },
+    "responses": {
+      "bn": "জি আপু, আমাদের প্রতিটি স্টিচড ড্রেসের ভেতরে উভয় পাশে ১ থেকে ১.৫ ইঞ্চি এক্সট্রা কাপড় (মার্জিন) রাখা থাকে। তাই সামান্য টাইট মনে হলে সহজেই সেলাই খুলে লুজ করে নিতে পারবেন।",
+      "en": "Yes, all our stitched dresses come with 1 to 1.5 inches of extra fabric margin on both sides, making it very easy to loosen the fit if needed.",
+      "banglish": "Ji apu, amader protiti stitched dress-er bhetore ubhoy pashe 1 theke 1.5 inch extra kapor (margin) rakha thake. Tai shamanyo tight mone hole shohojei shelai khule loose kore nite parben."
+    }
+  },
+  {
+    "id": "size_003",
+    "category": "womenswear_size_fit",
+    "intent": "height_vs_gown_length",
+    "queries": {
+      "bn": "আমার উচ্চতা ৫ ফুট ২ ইঞ্চি, এই গাউনটা কি মাটিতে লুটাবে?",
+      "en": "My height is 5'2\", will this gown drag on the floor?",
+      "banglish": "Amar height 5 feet 2 inch, ei gown-ta ki matite lutabe?"
+    },
+    "responses": {
+      "bn": "এই ড্রেসটির লেন্থ [৪৮/৫০ ইঞ্চি]। ৫ ফুট ২ ইঞ্চি উচ্চতায় এটি আপনার গোড়ালি (Ankle) পর্যন্ত আসবে, মাটিতে লুটাবে না। হিল পরলে লুকটা আরও দারুণ লাগবে।",
+      "en": "The length of this dress is [48/50 inches]. For a 5'2\" height, it will fall right at your ankle without dragging on the floor, and it pairs wonderfully with heels.",
+      "banglish": "Ei dress-tir length [48/50 inch]. 5 feet 2 inch height-e eti apnar gorali (ankle) porjonto ashbe, matite lutabe na. Heel porle look-ta aro darun lagbe."
+    }
+  },
+  {
+    "id": "size_004",
+    "category": "womenswear_size_fit",
+    "intent": "borka_size_guide",
+    "queries": {
+      "bn": "বোরকার সাইজ কীভাবে নেব? ৫২, ৫৪ নাকি ৫৬?",
+      "en": "How do I choose my borka size between 52, 54, and 56?",
+      "banglish": "Borkar size kivabe nibo? 52, 54 naki 56?"
+    },
+    "responses": {
+      "bn": "উচ্চতা অনুযায়ী বোরকার সাইজ সিলেক্ট করুন: ৫'০\"–৫'২\" হলে ৫২, ৫'৩\"–৫'৪\" হলে ৫৪, এবং ৫'৫\"–৫'৬\" হলে ৫৬ সাইজ নিন। হিল পরার অভ্যাস থাকলে ১ সাইজ বড় নিতে পারেন।",
+      "en": "Choose your borka size based on height: 52 for 5'0\"–5'2\", 54 for 5'3\"–5'4\", and 56 for 5'5\"–5'6\". If you wear heels regularly, consider sizing up by one.",
+      "banglish": "Height onujayi borkar size select korun: 5'0\"–5'2\" hole 52, 5'3\"–5'4\" hole 54, ebong 5'5\"–5'6\" hole 56 size nin. Heel porar obbhash thakle 1 size boro nite paren."
+    }
+  },
+  {
+    "id": "size_005",
+    "category": "womenswear_size_fit",
+    "intent": "transparency_and_inner",
+    "queries": {
+      "bn": "কাপড় কি পাতলা বা ট্রান্সপারেন্ট? ভেতরে কি আলাদা ইনার পরতে হবে?",
+      "en": "Is the fabric see-through? Do I need to wear a separate inner?",
+      "banglish": "Kapor ki patla ba transparent? Bhetore ki alada inner porte hobe?"
+    },
+    "responses": {
+      "bn": "ফ্যাব্রিকটি যথেষ্ট ঘন বুননের, তাই নরমাল ব্যবহারে স্বচ্ছ মনে হবে না। তবে আপনি চাইলে হালকা একটি কটন ইনার পরতে পারেন (আর ড্রেসের সাথে ইনার দেওয়া থাকলে তা উল্লেখ করা আছে)।",
+      "en": "The fabric is densely woven and opaque for regular wear. However, you may wear a lightweight cotton inner for extra comfort if preferred.",
+      "banglish": "Fabric-ti jotheshto ghono bunoner, tai normal bebohare transparent mone hobe na. Tobe apni chaile halka ekti cotton inner porte paren."
+    }
+  },
+  {
+    "id": "size_006",
+    "category": "womenswear_size_fit",
+    "intent": "maternity_comfort",
+    "queries": {
+      "bn": "আমি এখন প্রেগন্যান্ট, এই ড্রেসটি কি পরতে পারব? আরামদায়ক হবে?",
+      "en": "I am currently pregnant, will this dress be comfortable for maternity wear?",
+      "banglish": "Ami ekhon pregnant, ei dress-ti ki porte parbo? Aramdaiyok hobe?"
+    },
+    "responses": {
+      "bn": "অভিনন্দন আপু! আমাদের এই আনারকলি/এ-লাইন প্যাটার্নটি পেটের অংশে যথেষ্ট ঢিলেঢালা এবং ফ্যাব্রিকটি খুব সফট। আপনার বর্তমান বডি সাইজের চেয়ে ১ সাইজ বড় নিলে পুরো সময়টাই খুব আরামে পরতে পারবেন।",
+      "en": "Congratulations! Our A-line/Anarkali cut offers plenty of room around the belly with soft, breathable fabric. Sizing up by 1 size will keep you comfortable throughout.",
+      "banglish": "Obhinondon apu! Amader ei A-line/Anarkali pattern-ti peter ongshe jotheshto dhiledhala ebong fabric-ti khub soft. Apnar bortoman body size-er cheye 1 size boro nile puro shomoytai khub arame porte parben."
+    }
+  },
+  {
+    "id": "size_007",
+    "category": "womenswear_size_fit",
+    "intent": "unstitched_and_dupatta_size",
+    "queries": {
+      "bn": "আনস্টিচড থ্রি-পিসে কি কাপড় পর্যাপ্ত আছে? ওড়না কি বড় হবে?",
+      "en": "Does the unstitched three-piece have enough fabric? Is the dupatta full-sized?",
+      "banglish": "Unstitched three-piece-e ki kapor porjapto ase? Orna ki boro hobe?"
+    },
+    "responses": {
+      "bn": "একদম নিশ্চিন্তে নিতে পারেন! কামিজের জন্য [৩/৩.৫ গজ], সালোয়ারের জন্য [২.৫ গজ] এবং ওড়নাটি পুরো ২.৫ গজ (৯০ ইঞ্চি) লম্বা দেওয়া আছে। যেকোনো হেলদি বডি ও লম্বা উচ্চতায় অনায়াসে ফুল হাতা দিয়ে বানানো যাবে।",
+      "en": "Yes, plenty! It includes [3/3.5 yards] for the kameez, [2.5 yards] for the salwar, and a full 2.5-yard (90-inch) dupatta, easily fitting fuller figures and taller heights with full sleeves.",
+      "banglish": "Ekdom nishchinte nite paren! Kameez-er jonno [3/3.5 goj], salwar-er jonno [2.5 goj] ebong orna-ti puro 2.5 goj (90 inch) lomba deya ache."
+    }
+  },
+  {
+    "id": "del_001",
+    "category": "delivery_and_payment",
+    "intent": "open_box_delivery",
+    "queries": {
+      "bn": "আমি কি ডেলিভারি ম্যানের সামনে প্রোডাক্ট খুলে চেক করে নিতে পারব?",
+      "en": "Can I open and check the product in front of the delivery man?",
+      "banglish": "Ami ki delivery man-er shamne product khule check kore nite parbo?"
+    },
+    "responses": {
+      "bn": "জি অবশ্যই! আমাদের প্রতিটি পার্সেলে 'ওপেন বক্স ডেলিভারি' সুবিধা রয়েছে। আপনি ডেলিভারি ম্যানের সামনে প্যাকেট খুলে প্রোডাক্ট ঠিক আছে কি না তা চেক করে পেমেন্ট করতে পারবেন।",
+      "en": "Yes, definitely! We offer 'Open Box Delivery' on all parcels. You can unbox and inspect the product in front of the rider before making the payment.",
+      "banglish": "Ji oboshshoi! Amader protiti parcel-e 'Open Box Delivery' shubidha royeche. Apni delivery man-er shamne packet khule product thik ache ki na ta check kore payment korte parben."
+    }
+  },
+  {
+    "id": "del_002",
+    "category": "delivery_and_payment",
+    "intent": "advance_delivery_charge_outside_dhaka",
+    "queries": {
+      "bn": "ঢাকার বাইরে অর্ডার করলে কি আগে ডেলিভারি চার্জ দিতে হবে?",
+      "en": "Do I need to pay the delivery charge in advance for orders outside Dhaka?",
+      "banglish": "Dhakar baire order korle ki age delivery charge dite hobe?"
+    },
+    "responses": {
+      "bn": "জি, ঢাকার বাইরে ক্যাশ অন ডেলিভারিতে অর্ডার কনফার্ম করতে হলে শুধু ডেলিভারি চার্জ [১২০/১৫০] টাকা আমাদের অফিশিয়াল বিকাশ/নগদে অগ্রিম পেমেন্ট করতে হবে। বাকি টাকা পার্সেল হাতে পেয়ে দেবেন।",
+      "en": "Yes, for Cash on Delivery outside Dhaka, only the delivery fee of [120/150 BDT] needs to be paid in advance via bKash/Nagad to confirm the order. The rest is payable upon delivery.",
+      "banglish": "Ji, Dhakar baire Cash on Delivery-te order confirm korte hole shudhu delivery charge [120/150] taka amader official bKash/Nagad-e advance korte hobe. Baki taka parcel hate peye deben."
+    }
+  },
+  {
+    "id": "del_003",
+    "category": "delivery_and_payment",
+    "intent": "courier_rider_issue",
+    "queries": {
+      "bn": "ডেলিভারি ম্যান পার্সেল না দিয়েই 'ডেলিভারড' দেখিয়েছে বা ফোন ধরছে না।",
+      "en": "The rider marked my parcel as 'Delivered' without handing it over, or isn't answering calls.",
+      "banglish": "Delivery man parcel na diyei 'Delivered' dekhiyeche ba phone dhorche na."
+    },
+    "responses": {
+      "bn": "এমন অনাকাঙ্ক্ষিত অভিজ্ঞতার জন্য আমরা দুঃখিত। অনুগ্রহ করে আপনার অর্ডার নম্বর বা ফোন নম্বরটি দিন, আমরা এখনই কুরিয়ার হাবের সাথে কথা বলে বিষয়টি সমাধান করছি এবং আগামীকালের মধ্যে ডেলিভারি নিশ্চিত করছি।",
+      "en": "We sincerely apologize for this inconvenience. Please share your order or phone number, and we will immediately escalate this with the courier hub to ensure delivery by tomorrow.",
+      "banglish": "Emon onakankhito obhiggoter jonno amra dukkhito. Onugroho kore apnar order number ba phone number-ti din, amra ekhoni courier hub-er shathe kotha bole bishoyti shomadhan korchi."
+    }
+  },
+  {
+    "id": "ret_001",
+    "category": "return_exchange_refund",
+    "intent": "size_exchange_policy",
+    "queries": {
+      "bn": "পার্সেল পেয়েছি, কিন্তু সাইজ ছোট/বড় হয়েছে। এখন কীভাবে চেঞ্জ করব?",
+      "en": "I received the parcel, but the size doesn't fit. How can I exchange it?",
+      "banglish": "Parcel peyechi, kintu size choto/boro hoyeche. Ekhon kivabe change korbo?"
+    },
+    "responses": {
+      "bn": "চিন্তার কোনো কারণ নেই! পার্সেল রিসিভ করার [৩/৭] দিনের মধ্যে অব্যবহৃত ও ট্যাগ অক্ষত থাকা অবস্থায় আপনি সাইজ এক্সচেঞ্জ করতে পারবেন। আপনার অর্ডার নম্বর এবং কোন সাইজটি লাগবে তা জানান (এক্ষেত্রে ডেলিভারি চার্জ প্রযোজ্য)।",
+      "en": "No worries! You can exchange the size within [3/7] days of receiving it, provided the item is unused with tags intact. Please share your order ID and desired size (delivery charges apply).",
+      "banglish": "Chintar kono karon nei! Parcel receive korar [3/7] diner moddhe obobohrito o tag okkhoto thaka obosthay apni size exchange korte parben. Apnar order number ebong kon size-ti lagbe ta janan."
+    }
+  },
+  {
+    "id": "ret_002",
+    "category": "return_exchange_refund",
+    "intent": "wrong_or_damaged_product",
+    "queries": {
+      "bn": "আপনারা তো ভুল প্রোডাক্ট পাঠিয়েছেন! বা ড্রেসটা ছেঁড়া এসেছে।",
+      "en": "You sent the wrong product, or the dress arrived damaged!",
+      "banglish": "Apnara to bhul product pathiyechen! Ba dress-ta chera esheche."
+    },
+    "responses": {
+      "bn": "এই অসুবিধার জন্য আমরা আন্তরিকভাবে দুঃখিত। অনুগ্রহ করে প্রোডাক্টটির একটি স্পষ্ট ছবি বা আনবক্সিং ভিডিও এবং আপনার অর্ডার নম্বরটি দিন। আমরা সম্পূর্ণ ফ্রি-তে এটি পরিবর্তন করে দেব।",
+      "en": "We deeply apologize for this mistake. Please send a clear photo or unboxing video along with your order number, and we will replace it completely free of charge.",
+      "banglish": "Ei oshubidhar jonno amra antorikbhabe dukkhito. Onugroho kore product-tir ekti sposhto chobi ba unboxing video ebong apnar order number-ti din. Amra shompurno free-te eti poriborton kore debo."
+    }
+  },
+  {
+    "id": "ret_003",
+    "category": "return_exchange_refund",
+    "intent": "refund_timeline",
+    "queries": {
+      "bn": "অর্ডার ক্যান্সেল করেছি / ভুল করে বেশি টাকা পাঠিয়েছি, রিফান্ড পাব কবে?",
+      "en": "I cancelled my order / overpaid by mistake. When will I get my refund?",
+      "banglish": "Order cancel korechi / bhul kore beshi taka pathiyechi, refund pabo kobe?"
+    },
+    "responses": {
+      "bn": "একদম চিন্তা করবেন না! আমাদের অ্যাকাউন্টস টিম পেমেন্টটি ভেরিফাই করে আগামী ২৪ থেকে ৪৮ ঘণ্টার মধ্যে আপনার বিকাশ/নগদে টাকা রিফান্ড করে দেবে। অনুগ্রহ করে আপনার ট্রানজেকশন আইডি (TrxID) দিন।",
+      "en": "Don't worry at all! Our accounts team will verify the payment and refund the amount to your bKash/Nagad within 24 to 48 hours. Please share your Transaction ID (TrxID).",
+      "banglish": "Ekdom chinta korben na! Amader accounts team payment-ti verify kore agami 24 theke 48 ghontar moddhe apnar bKash/Nagad-e taka refund kore debe. Onugroho kore apnar TrxID din."
+    }
+  },
+  {
+    "id": "gen_001",
+    "category": "general_inquiry",
+    "intent": "price_bargaining",
+    "queries": {
+      "bn": "দাম একটু কমানো যাবে না? অন্য পেজে তো আরও কম দামে দেখলাম।",
+      "en": "Can you lower the price a bit? I saw it cheaper on another page.",
+      "banglish": "Dam ektu komano jabe na? Onno page-e to aro kom dame dekhlam."
+    },
+    "responses": {
+      "bn": "আমরা প্রোডাক্টের ফ্যাব্রিক ও ফিনিশিংয়ের সাথে কোনো আপস করি না, তাই আমাদের প্রাইস ফিক্সড। তবে আপনি একসাথে [২টি বা তার বেশি] ড্রেস অর্ডার করলে স্পেশাল ডিসকাউন্ট বা ফ্রি ডেলিভারি সুবিধা পাবেন!",
+      "en": "We never compromise on fabric and stitching quality, so our prices are fixed. However, if you order [2 or more] items together, you can enjoy a special discount or free delivery!",
+      "banglish": "Amra product-er fabric o finishing-er shathe kono aposh kori na, tai amader price fixed. Tobe apni ekshathe [2-ti ba tar beshi] dress order korle special discount ba free delivery shubidha paben!"
+    }
+  },
+  {
+    "id": "gen_002",
+    "category": "general_inquiry",
+    "intent": "real_photo_color_check",
+    "queries": {
+      "bn": "ছবিতে যেমন দেখাচ্ছে বাস্তবে কি ঠিক তেমনই হবে? কালার চেঞ্জ হবে না তো?",
+      "en": "Does it look exactly like the picture in real life, or is the color different?",
+      "banglish": "Chobite jemon dekhacche bastobe ki thik temoni hobe? Color change hobe na to?"
+    },
+    "responses": {
+      "bn": "আমরা নিজস্ব স্টুডিওতে তোলা রিয়েল ছবিই আপলোড করি। তবে ফোনের ডিসপ্লে ব্রাইটনেস বা লাইটিংয়ের কারণে কালারের সামান্য (৫-১০%) তারতম্য হতে পারে। ডেলিভারি ম্যানের সামনে দেখে নেওয়ার সুযোগ তো থাকছেই!",
+      "en": "We upload real photos taken in our studio. However, a slight 5–10% color variation may occur due to screen brightness or lighting. Plus, you can always check it in front of the delivery rider!",
+      "banglish": "Amra nijossho studio-te tola real chobii upload kori. Tobe phone-er display brightness ba lighting-er karone color-er shamanyo (5-10%) tartommo hote pare. Delivery man-er shamne dekhe neyar shujog to thakchei!"
+    }
+  },
+  {
+    "id": "gen_003",
+    "category": "general_inquiry",
+    "intent": "incomplete_query_no_product",
+    "queries": {
+      "bn": "দাম কত? / ছবি দেন।",
+      "en": "Price please? / Send pictures.",
+      "banglish": "pp? / dam koto? / inbox plz."
+    },
+    "responses": {
+      "bn": "হ্যালো আপু! আপনি কোন ড্রেসটির দাম বা বিস্তারিত জানতে চাচ্ছেন, অনুগ্রহ করে সেটির একটি ছবি বা স্ক্রিনশট আমাদের দিন। আমি এখনই সব তথ্য জানিয়ে দিচ্ছি।",
+      "en": "Hello! Could you please share a picture or screenshot of the specific dress you are interested in? I will provide the price and details right away.",
+      "banglish": "Hello apu! Apni kon dress-tir dam ba bistarito jante chacchen, onugroho kore shetir ekti chobi ba screenshot amader din. Ami ekhoni shob tottho janiye dicchi."
+    }
+  },
+  {
+    "id": "irr_001",
+    "category": "irrelevant_and_fun",
+    "intent": "greetings_and_bot_check",
+    "queries": {
+      "bn": "কেমন আছেন? ভাত খাইছেন? তুমি কি রোবট নাকি মানুষ?",
+      "en": "How are you? Have you eaten? Are you a robot or a human?",
+      "banglish": "Kemon achen? Bhat khaichen? Tumi ki robot naki manush?"
+    },
+    "responses": {
+      "bn": "আসসালামু আলাইকুম! আলহামদুলিল্লাহ, আমি ভালো আছি। আমি এই পেজের AI অ্যাসিস্ট্যান্ট—আপনাকে দ্রুত সঠিক তথ্য দিতে ২৪ ঘণ্টা আছি। বলুন, আজ কোন ড্রেসটি দেখতে চান?",
+      "en": "Assalamu Alaikum! I'm doing great, thank you. I am the AI assistant for this page, available 24/7 to help you shop. Which outfit would you like to explore today?",
+      "banglish": "Assalamu Alaikum! Alhamdulillah, ami bhalo achi. Ami ei page-er AI assistant—apnake druto shothik tottho dite 24 ghonta achi. Bolun, aj kon dress-ti dekhte chan?"
+    }
+  },
+  {
+    "id": "irr_002",
+    "category": "irrelevant_and_fun",
+    "intent": "credit_or_free_gift_request",
+    "queries": {
+      "bn": "বাকি দেওয়া যাবে? সামনের মাসে বেতন পেলে দেব / আজকে আমার জন্মদিন, একটা ড্রেস গিফট করেন!",
+      "en": "Can I buy on credit and pay next month? / Today is my birthday, gift me a dress!",
+      "banglish": "Baki deya jabe? Shamner mashe beton pele debo / Ajke amar birthday, ekta dress gift koren!"
+    },
+    "responses": {
+      "bn": "শুভ জন্মদিন / আপনার আগ্রহের জন্য ধন্যবাদ! তবে আমাদের সিস্টেমে বাকিতে বা ফ্রি-তে প্রোডাক্ট দেওয়ার সুযোগ নেই। আমাদের পেজে চোখ রাখুন, মাঝেমধ্যেই আমরা কাস্টমারদের জন্য গিভঅ্যাওয়ে ও স্পেশাল ডিসকাউন্ট আয়োজন করি!",
+      "en": "Happy Birthday / Thank you for reaching out! Unfortunately, we don't offer credit or free giveaways on demand. Keep an eye on our page for upcoming contests and special discounts!",
+      "banglish": "Shubho jonmodin / Apnar agroher jonno dhonnobad! Tobe amader system-e bakite ba free-te product deyar shujog nei. Amader page-e chokh rakhun, majhemoddhei amra giveaway o special discount ayojon kori!"
+    }
+  },
+  {
+    "id": "irr_003",
+    "category": "irrelevant_and_fun",
+    "intent": "out_of_scope_personal_advice",
+    "queries": {
+      "bn": "আমার বয়ফ্রেন্ড/গার্লফ্রেন্ড রাগ করেছে, কী করব? / আজকের খেলায় কে জিতবে?",
+      "en": "My partner is mad at me, what should I do? / Who will win today's match?",
+      "banglish": "Amar bf/gf rag koreche, ki korbo? / Ajker khelay ke jitbe?"
+    },
+    "responses": {
+      "bn": "হা হা, খেলার খবর বা সম্পর্কের জটিলতায় আমি এক্সপার্ট নই! তবে প্রিয়জনের রাগ ভাঙাতে চাইলে আমাদের কালেকশন থেকে সুন্দর একটি ড্রেস গিফট করতে পারেন—কাজ হয়ে যাবে!",
+      "en": "Haha, I'm no expert on match predictions or relationship advice! However, gifting a gorgeous outfit from our collection is a guaranteed way to bring a smile back!",
+      "banglish": "Ha ha, khelar khobor ba shomporker jotilotay ami expert noi! Tobe priyojoner rag bhangate chaile amader collection theke shundor ekti dress gift korte paren—kaj hoye jabe!"
+    }
+  },
+  {
+    "id": "order_001",
+    "category": "general_inquiry",
+    "intent": "how_to_order",
+    "queries": {
+      "bn": "কীভাবে অর্ডার করব?",
+      "en": "How do I place an order?",
+      "banglish": "Kivabe order korbo?"
+    },
+    "responses": {
+      "bn": "আপনার পছন্দের পণ্যে Review checkout চাপুন, নাম, ফোন ও ডেলিভারি ঠিকানা নিশ্চিত করুন, তারপর Confirm order চাপুন। কনফার্ম করার আগে কোনো টাকা কাটা হবে না।",
+      "en": "Tap Review checkout on the product you like, confirm your name, phone and delivery address, then press Confirm order. Nothing is charged until you confirm.",
+      "banglish": "Apnar pochonder product-e Review checkout chapun, nam, phone o delivery address confirm korun, tarpor Confirm order chapun. Confirm korar age kono taka kata hobe na."
+    }
+  },
+  {
+    "id": "size_measure_001",
+    "category": "womenswear_size_fit",
+    "intent": "how_to_measure",
+    "queries": {
+      "bn": "আমার সাইজ কীভাবে মাপব?",
+      "en": "How do I measure my size?",
+      "banglish": "Amar size kivabe mapbo?"
+    },
+    "responses": {
+      "bn": "নরম মাপার ফিতা দিয়ে বুকের সবচেয়ে উঁচু অংশ, কোমর ও হিপের সবচেয়ে চওড়া অংশ মাপুন। মাপটা আমাদের জানালে আমরা সঠিক সাইজ বেছে দিতে সাহায্য করব।",
+      "en": "Use a soft measuring tape around the fullest part of your bust, waist and hips. Share those measurements and we will help pick the right size.",
+      "banglish": "Narom measuring tape diye buker shobcheye uchu ongsho, komor o hip-er shobcheye chora ongsho mapun. Map-ta amader janale amra shothik size beche dite shahajjo korbo."
+    }
+  },
+  {
+    "id": "pay_001",
+    "category": "delivery_and_payment",
+    "intent": "payment_methods",
+    "queries": {
+      "bn": "কোন কোন পেমেন্ট পদ্ধতি আছে?",
+      "en": "What payment methods do you accept?",
+      "banglish": "Kon kon payment method ache?"
+    },
+    "responses": {
+      "bn": "ক্যাশ অন ডেলিভারি, কার্ড এবং বিকাশ/নগদের মতো ডিজিটাল ওয়ালেট গ্রহণ করা হয়।",
+      "en": "We accept Cash on Delivery, card, and digital wallets such as bKash/Nagad.",
+      "banglish": "Cash on Delivery, card ebong bKash/Nagad-er moto digital wallet grohon kora hoy."
+    }
+  },
+  {
+    "id": "del_time_001",
+    "category": "delivery_and_payment",
+    "intent": "delivery_time",
+    "queries": {
+      "bn": "ডেলিভারি কত দিনে পাব?",
+      "en": "How long does delivery take?",
+      "banglish": "Delivery koto dine pabo?"
+    },
+    "responses": {
+      "bn": "শহরের ভিতরে ১-২ দিন এবং শহরের বাইরে ৩-৫ দিন সময় লাগে।",
+      "en": "Delivery takes 1-2 days inside the city and 3-5 days outside.",
+      "banglish": "Shohorer vitore 1-2 din ebong shohorer baire 3-5 din shomoy lage."
+    }
+  },
+  {
+    "id": "custom_001",
+    "category": "general_inquiry",
+    "intent": "custom_design",
+    "queries": {
+      "bn": "নিজের ডিজাইনে পণ্য বানানো যাবে?",
+      "en": "Can I order a custom design?",
+      "banglish": "Nijer design-e product banano jabe?"
+    },
+    "responses": {
+      "bn": "আপনি ডিজাইনের অনুরোধ পাঠাতে পারেন। সম্ভাব্যতা, দাম ও ডেলিভারির তারিখ বিক্রেতা নিশ্চিত করার আগে কোনো কাস্টম অর্ডার নিশ্চিত করা হয় না।",
+      "en": "You can send a design request. No custom order is confirmed until the seller approves feasibility, price and delivery date.",
+      "banglish": "Apni design-er onurodh pathate paren. Shombhobota, dam o delivery date bikreta nishchit korar age kono custom order confirm kora hoy na."
+    }
+  }
+]

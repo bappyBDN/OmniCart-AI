@@ -165,9 +165,12 @@ def patch_profile(payload: ProfileInput, session=Depends(customer_session)):
     return save_profile(session.customer_id, session.shop_id, payload.model_dump(exclude_none=True))
 
 
-def history_dict(row):
-    return {"id": row.message_id, "sender": row.sender, "content": row.message_text,
-            "timestamp": row.timestamp.isoformat() if row.timestamp else None}
+def history_dict(row, image=None):
+    result = {"id": row.message_id, "sender": row.sender, "content": row.message_text,
+              "timestamp": row.timestamp.isoformat() if row.timestamp else None}
+    if image:
+        result["image"] = image
+    return result
 
 
 @app.get("/api/messages")
@@ -233,6 +236,9 @@ def chat(payload: ChatInput, background: BackgroundTasks, session=Depends(custom
             user_row = ChatHistory(sender="user", message_text=query + ("\n[Image attached]" if payload.image else ""), customer_id=session.customer_id, shop_id=session.shop_id)
             db.add(user_row)
             db.flush()
+            if payload.image:
+                from backend.records import ChatImage
+                db.add(ChatImage(message_id=user_row.message_id, shop_id=session.shop_id, image=payload.image))
             record_sentiment(db, session.customer_id, session.shop_id, feeling, channel, user_row.message_id)
             remember_turn(db, session.customer_id, session.shop_id, response, channel)
             response.setdefault("sentiment", {**feeling.as_dict(), "escalate": conversation_context["sentiment"]["escalate"]})
@@ -539,7 +545,10 @@ def admin_messages(customer_id: int, session=Depends(admin_session)):
     with transaction() as db:
         get_customer(db, customer_id, session.shop_id)
         rows = db.query(ChatHistory).filter_by(customer_id=customer_id, shop_id=session.shop_id).order_by(ChatHistory.message_id.desc()).limit(100).all()
-        return [history_dict(row) for row in reversed(rows)]
+        from backend.records import ChatImage
+        images = {image.message_id: image.image for image in db.query(ChatImage).filter(
+            ChatImage.message_id.in_([row.message_id for row in rows]))}
+        return [history_dict(row, images.get(row.message_id)) for row in reversed(rows)]
 
 
 @app.patch("/api/admin/customers/{customer_id}/handoff")

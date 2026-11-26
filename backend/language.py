@@ -23,11 +23,22 @@ BANGLISH = {
     "keno": "why", "kano": "why", "khabo": "consume", "khawa": "consume",
     "khেতে": "consume", "khete": "consume", "nibo": "take", "nebo": "take",
     "kinbo": "buy", "kinte": "buy", "korte": "", "bolo": "tell", "bolen": "tell",
+    # Garment and dress vocabulary (Banglish -> English).
+    "kurti": "kurti tunic", "kurtii": "kurti tunic", "kurta": "kurti tunic", "tunic": "tunic",
+    "dress": "dress", "gown": "gown dress", "frock": "frock dress", "anarkali": "anarkali", "ankarkali": "anarkali",
+    "palazzo": "palazzo pant", "salwar": "salwar", "shalwar": "salwar", "kameez": "kameez", "kamiz": "kameez",
+    "dupatta": "dupatta", "orna": "dupatta", "odhna": "dupatta", "lehenga": "lehenga", "blouse": "blouse",
+    "boroka": "borka", "burka": "borka", "borka": "borka", "threepiece": "three piece", "top": "top",
+    "jacket": "jacket", "shirt": "shirt", "pant": "pant", "punjabi": "panjabi",
 }
 MARKERS = {"lal", "laal", "kalo", "nil", "neel", "shari", "sharee", "jama", "juta", "suti", "sutir",
            "dam", "daam", "dham", "koto", "kotoo", "ache", "ase", "hobe", "pabo", "chai", "amar", "amake", "apnader", "ferot", "dhonnobad", "manush", "manusher", "kotha",
            "eta", "ata", "eita", "aita", "oita", "etar", "atar", "eitar", "aitar", "keno", "kano",
-           "khabo", "khawa", "khete", "nibo", "nebo", "kinbo", "kinte", "korte", "bolo", "bolen", "taka", "tk"}
+           "khabo", "khawa", "khete", "nibo", "nebo", "kinbo", "kinte", "korte", "bolo", "bolen", "taka", "tk",
+           "sobuj", "shobuj", "holud", "shada", "sada", "beguni", "komola",
+           "kurti", "kurtii", "kurta", "tunic", "gown", "frock", "anarkali", "ankarkali",
+           "palazzo", "salwar", "shalwar", "kameez", "kamiz", "dupatta", "orna", "odhna",
+           "lehenga", "blouse", "boroka", "burka", "borka", "threepiece", "punjabi"}
 
 
 @dataclass(frozen=True)

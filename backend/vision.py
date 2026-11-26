@@ -35,12 +35,15 @@ ALLOWED_IMAGE_HOSTS = ("fbcdn.net", "fbsbx.com", "facebook.com", "cdninstagram.c
 # Words a vision model commonly uses, mapped onto catalogue type tokens.
 TYPE_SYNONYMS = {
     "tee": "tshirt", "t": "tshirt", "tshirt": "tshirt", "polo": "shirt", "top": "shirt",
-    "blouse": "shirt", "kurta": "shirt", "panjabi": "shirt", "shirt": "shirt",
-    "trouser": "pant", "jean": "pant", "jogger": "sweatpant", "legging": "pant",
+    "blouse": "shirt", "kurta": "tunic", "kurti": "tunic", "tunic": "tunic", "kameez": "tunic",
+    "kamiz": "tunic", "panjabi": "shirt", "shirt": "shirt",
+    "trouser": "pant", "jean": "pant", "jogger": "sweatpant", "legging": "pant", "palazzo": "pant",
+    "salwar": "pant", "shalwar": "pant",
     "sneaker": "sneaker", "trainer": "sneaker", "shoe": "shoe", "sandal": "sandal", "slipper": "sandal",
     "handbag": "bag", "tote": "bag", "purse": "wallet", "rucksack": "backpack", "bag": "backpack",
     "smartwatch": "watch", "earphone": "earbud", "headset": "headphone", "gown": "dress",
-    "frock": "dress", "sari": "saree", "coat": "jacket", "sweatshirt": "hoodie", "pullover": "hoodie",
+    "frock": "dress", "anarkali": "dress", "lehenga": "dress", "sari": "saree", "saree": "saree",
+    "dupatta": "dupatta", "orna": "dupatta", "coat": "jacket", "sweatshirt": "hoodie", "pullover": "hoodie",
     "cup": "mug", "flask": "bottle", "tumbler": "bottle",
 }
 MATERIAL_WORDS = ("cotton", "linen", "silk", "wool", "denim", "leather", "polyester", "nylon",

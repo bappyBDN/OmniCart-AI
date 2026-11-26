@@ -57,6 +57,31 @@ def suggest_alternatives(shop_id, query, limit=3):
     return [row for row in rows if category and row["category"] == category][:limit]
 
 
+def suggest_similar(shop_id, data, limit=3):
+    """In-stock push-sell for an out-of-stock product: same garment type first,
+    then the same colour, then the same category — never unrelated items."""
+    from backend.retrieval import product_dict, tokens
+    name_terms = set(tokens(data.get("name", "")))
+    wanted_colors = {c.casefold() for c in (data.get("colors") or []) + (data.get("observed_colors") or [])}
+    with transaction() as db:
+        rows = [product_dict(row) for row in db.query(Product).filter(
+            active_product(), Product.shop_id == shop_id, Product.stock_count > 0,
+            Product.product_id != data.get("product_id")).order_by(Product.product_id).all()]
+    scored = []
+    for row in rows:
+        row_terms = set(tokens(row["name"]))
+        row_colors = {c.casefold() for c in (row.get("colors") or []) + (row.get("observed_colors") or [])}
+        same_type = bool(name_terms & row_terms)
+        same_category = row.get("category") == data.get("category")
+        color_hit = bool(wanted_colors & row_colors)
+        if not (same_type or same_category):
+            continue
+        # Rank: type first, then colour, then category-only.
+        scored.append(((same_type, color_hit, same_category), row))
+    scored.sort(key=lambda item: item[0], reverse=True)
+    return [row for _, row in scored[:limit]]
+
+
 def catalog_summary(shop_id, category=None):
     with transaction() as db:
         query = db.query(

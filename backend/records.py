@@ -25,6 +25,25 @@ class PolicySource(Base):
     source_hash = Column(String, nullable=False)
 
 
+class EdgeCaseQA(Base):
+    """Multilingual support Q&A pairs (semantic chunks), tagged by category/intent."""
+    __tablename__ = "edgecase_qa"
+    source_id = Column(String, primary_key=True)
+    shop_id = Column(String, ForeignKey("shops.shop_id"), nullable=False, index=True)
+    category = Column(String, nullable=False, index=True)
+    intent = Column(String, nullable=False)
+    queries = Column(JSON, nullable=False)
+    responses = Column(JSON, nullable=False)
+
+
+class ChatImage(Base):
+    """Base64 product photos attached to a chat turn, visible to support admins."""
+    __tablename__ = "chat_images"
+    message_id = Column(Integer, ForeignKey("chat_history.message_id"), primary_key=True)
+    shop_id = Column(String, ForeignKey("shops.shop_id"), nullable=False, index=True)
+    image = Column(Text, nullable=False)
+
+
 class AccessSession(Base):
     __tablename__ = "api_access_sessions"
     token_hash = Column(String, primary_key=True)

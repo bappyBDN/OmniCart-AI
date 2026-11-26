@@ -333,6 +333,14 @@ def focused_conversation(state, product, shop_id, customer_id):
                 quantity = incoming.get("quantity")
         if not quantity:
             if not data.get("stock_count"):
+                from backend.catalog import suggest_similar
+                similar = suggest_similar(shop_id, data, 3)
+                if similar:
+                    lines = ([f"{name} এখন স্টকে নেই। তবে একই ধরনের/রঙের এগুলো দেখতে পারেন:"]
+                             if bangla else [f"{name} is out of stock right now, but these similar styles are available:"])
+                    for row in similar:
+                        lines.append(f"- **{row['name']}** — ৳{row['effective_price']:,.2f} [product:{row['product_id']}]")
+                    return reply("\n".join(lines), show_images=True)
                 return reply(f"{name} এখন স্টকে নেই। চাইলে অন্য পণ্য খুঁজতে সাহায্য করতে পারি।" if bangla else f"{name} is currently out of stock. I can help you look for another product if you'd like.")
             if not data.get("orderable"):
                 return reply(f"{name}-এর দাম, মুদ্রা ও স্টক বিক্রেতার নিশ্চিত করা প্রয়োজন। এখন অর্ডার ড্রাফট তৈরি করা যাবে না।" if bangla else
@@ -481,8 +489,21 @@ def build_tools(customer_id, shop_id, raw_user_text, focus_product_id=None):
         result = graph_rag.retrieve(image_description, shop_id, "product", 5)
         return {"sources": result.get("sources", []), "visual_search": True}
 
+    @tool
+    def translate_to_english_tool(text: str) -> dict:
+        """Translate a Bangla or Banglish shopping query into English search terms so product matching uses one vocabulary."""
+        from backend.translate import to_english
+        return {"translated": to_english(text)}
+
+    @tool
+    def translate_to_bangla_tool(text: str) -> dict:
+        """Translate an English assistant reply into natural, sentiment-aware Bangla for the customer."""
+        from backend.translate import to_bangla
+        return {"translated": to_bangla(text, chat_model) or text}
+
     return [catalog_summary_tool, browse_catalog_tool, database_search_tool, product_search_tool, policy_search_tool, check_user_status_tool, update_user_info_tool,
-            quote_product_tool, process_order_tool, order_status_tool, send_email_to_admin, vision_to_product_search_tool]
+            quote_product_tool, process_order_tool, order_status_tool, send_email_to_admin, vision_to_product_search_tool,
+            translate_to_english_tool, translate_to_bangla_tool]
 
 
 def route_tools(state, context):
@@ -763,12 +784,31 @@ def retrieve_node(state, config: RunnableConfig):
                 answer = (f"Yes — {qty} {'is' if qty == 1 else 'are'} available. "
                           f"That's ৳{total:,.2f} at ৳{price:,.2f} each. Want me to prepare the order?")
             else:
-                answer = (f"You're asking for {qty}, but only {stock} "
-                          f"{'is' if stock == 1 else 'are'} left in stock right now. "
-                          f"I can help with {stock} instead, or let you know when it's restocked?")
+                from backend.catalog import suggest_similar
+                similar = suggest_similar(shop_id, data, 3)
+                if similar:
+                    answer = (f"You're asking for {qty}, but only {stock} {'is' if stock == 1 else 'are'} left. "
+                              f"Here are similar styles: " + " · ".join(f"{row['name']} (৳{row['effective_price']:,.2f}) [product:{row['product_id']}]" for row in similar))
+                else:
+                    answer = (f"You're asking for {qty}, but only {stock} "
+                              f"{'is' if stock == 1 else 'are'} left in stock right now. "
+                              f"I can help with {stock} instead, or let you know when it's restocked?")
             return {"sources": [product], "answer": answer, "model_tier": "rules",
                     "focus_product_id": focus_id, "show_images": False,
                     "trace": add_trace(state, "retrieve", f"Answered quantity request from live stock for {focus_id} without a model call") + graph_trace}
+    # Edge-case Q&A pairs are already written in the customer's own words, so
+    # mirror the language deterministically instead of paraphrasing via a model.
+    if kind == "policy" and bounded_sources:
+        edge = next((s for s in bounded_sources if s.get("source_type") == "edgecase"), None)
+        if edge:
+            locale = state.get("locale", "en")
+            lang = "banglish" if locale == "bn-Latn" else "bn" if locale.startswith("bn") else "en"
+            responses = (edge.get("data") or {}).get("responses", {})
+            text = responses.get(lang) or responses.get("en", "")
+            answer = f"{text} [{edge['id']}]"
+            return {"sources": [edge], "answer": answer, "model_tier": "rules", "route": "support",
+                    "focus_product_id": graph_focus[0],
+                    "trace": add_trace(state, "retrieve", f"Answered multilingual edge case {edge['id']} in {lang}") + graph_trace}
     # English policy clauses need no generative paraphrase. In live evaluation,
     # even a critic occasionally introduced an inspection/approval step absent
     # from the source. Quote relevant clauses verbatim instead: cheaper and safer.

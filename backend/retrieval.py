@@ -94,6 +94,13 @@ ALIASES = {
     "discount": "discount discounts", "discounts": "discounts",
     "warranty": "warranty", "refund": "refund refunds", "refunds": "refunds",
     "gray": "grey", "grey": "grey",
+    # Dress catalogue vocabulary (Bangla script -> English).
+    "কুর্তি": "kurti tunic", "টিউনিক": "tunic", "ড্রেস": "dress", "গাউন": "gown dress",
+    "ফ্রক": "frock dress", "আনারকলি": "anarkali", "আনরকলি": "anarkali",
+    "প্যালাজো": "palazzo pant", "প্যালাৎজো": "palazzo pant", "সালোয়ার": "salwar", "কামিজ": "kameez",
+    "ওড়না": "dupatta", "দুপাট্টা": "dupatta", "লেহেঙ্গা": "lehenga", "ব্লাউজ": "blouse",
+    "বোরকা": "borka", "বোরখা": "borka", "থ্রি পিস": "three piece", "টপ": "top", "জ্যাকেট": "jacket",
+    "শার্ট": "shirt", "পাঞ্জাবি": "panjabi", "পাজামা": "pant", "শাড়ি": "saree", "শাঢ়ি": "saree",
 }
 
 COLOR_CANONICAL = {
@@ -118,11 +125,11 @@ CATEGORY_WORDS = {
 }
 
 TYPE_GROUPS = (
-    {"shirt", "tshirt"}, {"pant", "sweatpant"}, {"short"}, {"shoe", "sneaker", "sandal"},
+    {"shirt", "tshirt"}, {"pant", "sweatpant", "palazzo"}, {"short"}, {"shoe", "sneaker", "sandal"},
     {"watch"}, {"wallet"}, {"earbud"}, {"headphone"}, {"keyboard"}, {"mouse"},
-    {"backpack"}, {"hoodie"}, {"bottle"}, {"lamp"}, {"mat"}, {"mug"}, {"dress"},
+    {"backpack"}, {"hoodie"}, {"bottle"}, {"lamp"}, {"mat"}, {"mug"}, {"dress", "gown", "frock", "anarkali", "lehenga"},
     {"jacket"}, {"blender"}, {"monitor"}, {"speaker"}, {"phone"}, {"laptop"},
-    {"saree", "jamdani"},
+    {"saree", "jamdani"}, {"tunic", "kurti"}, {"dupatta"},
 )
 ACCESSORY_WORDS = {"case", "holder", "band", "sleeve", "stand", "rest", "cable"}
 
@@ -406,6 +413,8 @@ class HybridRetriever:
                         "embedding_text": embedding_text, "keywords": embedding_text,
                     },
                 ))
+        from backend.edgecases import edgecase_documents
+        documents.extend(edgecase_documents(db, shop_id))
         return documents
 
     def documents(self, shop_id: str, kind: str | None = None, plan: QueryPlan | None = None) -> list[Document]:

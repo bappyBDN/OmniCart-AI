@@ -33,6 +33,8 @@ RUN groupadd --gid 10001 app && \
 
 COPY backend/ ./backend/
 COPY models.py ./
+COPY alembic.ini ./
+COPY migrations/ ./migrations/
 COPY Data/products.json Data/policies.json Data/product_image_catalog.json Data/product_image_rag.json Data/policy_translations.json Data/policy_faqs.json ./Data/
 COPY ["product Image", "./product Image"]
 COPY scripts/ ./scripts/

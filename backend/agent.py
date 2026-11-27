@@ -331,16 +331,26 @@ def focused_conversation(state, product, shop_id, customer_id):
             if supplied:
                 save_profile(customer_id, shop_id, {"name": supplied})
                 quantity = incoming.get("quantity")
+        stock = data.get("stock_count")
+        if stock is None:
+            return reply(f"{name}-এর স্টক নিশ্চিত করা প্রয়োজন; বিক্রেতা নিশ্চিত না করা পর্যন্ত অর্ডার ড্রাফট তৈরি করা যাবে না।"
+                         if bangla else
+                         f"Stock needs merchant confirmation for {name}, so I can't prepare a checkout draft until it's confirmed.")
         if not quantity:
-            if not data.get("stock_count"):
+            if stock <= 0:
                 from backend.catalog import suggest_similar
                 similar = suggest_similar(shop_id, data, 3)
                 if similar:
                     lines = ([f"{name} এখন স্টকে নেই। তবে একই ধরনের/রঙের এগুলো দেখতে পারেন:"]
                              if bangla else [f"{name} is out of stock right now, but these similar styles are available:"])
                     for row in similar:
-                        lines.append(f"- **{row['name']}** — ৳{row['effective_price']:,.2f} [product:{row['product_id']}]")
-                    return reply("\n".join(lines), show_images=True)
+                        price = money_text(row.get("effective_price"), row.get("currency"))
+                        lines.append(f"- **{row['name']}** — {price} [product:{row['product_id']}]")
+                    result = reply("\n".join(lines), show_images=True)
+                    # Every product named in a reply must also be returned as a
+                    # card/source, otherwise the UI silently drops it.
+                    result["sources"] = [product] + [catalog_product_source(row) for row in similar]
+                    return result
                 return reply(f"{name} এখন স্টকে নেই। চাইলে অন্য পণ্য খুঁজতে সাহায্য করতে পারি।" if bangla else f"{name} is currently out of stock. I can help you look for another product if you'd like.")
             if not data.get("orderable"):
                 return reply(f"{name}-এর দাম, মুদ্রা ও স্টক বিক্রেতার নিশ্চিত করা প্রয়োজন। এখন অর্ডার ড্রাফট তৈরি করা যাবে না।" if bangla else
@@ -499,7 +509,11 @@ def build_tools(customer_id, shop_id, raw_user_text, focus_product_id=None):
     def translate_to_bangla_tool(text: str) -> dict:
         """Translate an English assistant reply into natural, sentiment-aware Bangla for the customer."""
         from backend.translate import to_bangla
-        return {"translated": to_bangla(text, chat_model) or text}
+        try:
+            model = chat_model(tier="small")
+        except Exception:
+            model = None
+        return {"translated": to_bangla(text, model) or text}
 
     return [catalog_summary_tool, browse_catalog_tool, database_search_tool, product_search_tool, policy_search_tool, check_user_status_tool, update_user_info_tool,
             quote_product_tool, process_order_tool, order_status_tool, send_email_to_admin, vision_to_product_search_tool,
@@ -773,6 +787,7 @@ def retrieve_node(state, config: RunnableConfig):
                         "focus_product_id": focus_id, "show_images": False,
                         "trace": add_trace(state, "retrieve", f"Quantity request needs confirmed facts for {focus_id}")}
             total = Decimal(str(price)) * qty
+            similar_sources = []
             if is_bangla(state["query"]):
                 if stock >= qty:
                     answer = (f"হ্যাঁ — {name}-এর {qty}টি স্টকে আছে। প্রতিটি ৳{price:,.2f} হিসেবে মোট ৳{total:,.2f}। "
@@ -787,14 +802,17 @@ def retrieve_node(state, config: RunnableConfig):
                 from backend.catalog import suggest_similar
                 similar = suggest_similar(shop_id, data, 3)
                 if similar:
+                    similar_sources = [catalog_product_source(row) for row in similar]
                     answer = (f"You're asking for {qty}, but only {stock} {'is' if stock == 1 else 'are'} left. "
-                              f"Here are similar styles: " + " · ".join(f"{row['name']} (৳{row['effective_price']:,.2f}) [product:{row['product_id']}]" for row in similar))
+                              f"Here are similar styles: " + " · ".join(
+                                  f"{row['name']} ({money_text(row.get('effective_price'), row.get('currency'))}) "
+                                  f"[product:{row['product_id']}]" for row in similar))
                 else:
                     answer = (f"You're asking for {qty}, but only {stock} "
                               f"{'is' if stock == 1 else 'are'} left in stock right now. "
                               f"I can help with {stock} instead, or let you know when it's restocked?")
-            return {"sources": [product], "answer": answer, "model_tier": "rules",
-                    "focus_product_id": focus_id, "show_images": False,
+            return {"sources": [product] + similar_sources, "answer": answer, "model_tier": "rules",
+                    "focus_product_id": focus_id, "show_images": bool(similar_sources),
                     "trace": add_trace(state, "retrieve", f"Answered quantity request from live stock for {focus_id} without a model call") + graph_trace}
     # Edge-case Q&A pairs are already written in the customer's own words, so
     # mirror the language deterministically instead of paraphrasing via a model.
@@ -1268,12 +1286,22 @@ def run_agent(customer_id, shop_id, query, history, previous_sources=None, image
             and result.get("model_tier", "rules") in ("rules", "vision") and not mood.already_apologetic(answer)):
         answer = mood.empathy_prefix(mood.Sentiment(label=feeling["label"]), locale.startswith("bn")) + answer
     # Guarantee a Bangla/Banglish customer always receives a Bengali reply,
-    # even if the provider ignored the locale instruction.
+    # even if the provider ignored the locale instruction. The model must be
+    # instantiated here: passing the chat_model factory used to fail silently.
+    localize_usage = {}
     if locale.startswith("bn") and answer:
-        from backend.translate import localize_answer
-        answer = localize_answer(answer, locale, chat_model)
+        from backend.translate import localize_answer, needs_bengali_translation
+        # Do not construct a model for deterministic Bengali answers: social,
+        # browse and rule replies must stay zero-LLM and zero-cost.
+        if needs_bengali_translation(answer):
+            try:
+                translation_model = chat_model(tier="small")
+            except Exception:
+                translation_model = None
+            answer = localize_answer(answer, locale, translation_model, usage_sink=localize_usage)
+    final_usage = merge_usage(result.get("usage", {}), localize_usage) if localize_usage else result.get("usage", {})
     return {"answer": answer, "sources": sources, "drafts": result.get("drafts", []),
-            "trace": result.get("trace", []), "degraded": result.get("degraded", False), "usage": reconcile_usage(result.get("usage", {})),
+            "trace": result.get("trace", []), "degraded": result.get("degraded", False), "usage": reconcile_usage(final_usage),
             "latency_ms": round((time.monotonic() - started) * 1000), "route": result["route"],
             "handoff": result.get("handoff"), "offer_handoff": result.get("offer_handoff", False),
             "locale": result.get("locale", "en"), "model_tier": result.get("model_tier", "rules"),

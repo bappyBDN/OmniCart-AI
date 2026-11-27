@@ -78,7 +78,7 @@ def main():
     with transaction() as db:
         products = db.query(Product).filter_by(shop_id=settings.shop_id).order_by(Product.product_id).all()
         for product in products:
-            existing = db.get(ProductImage, product.product_id)
+            existing = db.get(ProductImage, (product.shop_id, product.product_id))
             if existing and not args.force:
                 skipped += 1
                 continue

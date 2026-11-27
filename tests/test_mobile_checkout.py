@@ -47,7 +47,7 @@ def test_invalid_delivery_details_do_not_place_an_order(client):
 def test_price_conflict_rolls_back_edited_contact_details_and_stock(client):
     auth, draft = guest_draft(client)
     with transaction() as db:
-        db.get(Product, 'SKU_183').discounted_price = 13.50
+        db.get(Product, ('shop_01', 'SKU_183')).discounted_price = 13.50
     response = client.post(f"/api/checkout/{draft['draft_id']}/confirm", headers=auth, json=EDITED)
     assert response.status_code == 409
     profile = client.get('/api/profile', headers=auth).json()

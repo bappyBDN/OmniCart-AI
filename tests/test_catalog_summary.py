@@ -43,7 +43,7 @@ def test_summary_is_live_and_tenant_scoped(store):
     assert original['total_products'] == 100
     assert catalog_summary('other')['total_products'] == 1
     with transaction() as db:
-        db.get(Product, 'SKU_102').stock_count = 5
+        db.get(Product, ('shop_01', 'SKU_102')).stock_count = 5
     updated = catalog_summary('shop_01')
     assert updated['total_products'] == 100
     assert updated['in_stock_products'] == original['in_stock_products'] + 1

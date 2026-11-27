@@ -68,6 +68,14 @@ class Settings:
     embedding_model: str = os.getenv("EMBEDDING_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
     dense_enabled: bool = os.getenv("RAG_DENSE_ENABLED", "true").lower() == "true"
     embedding_download: bool = os.getenv("EMBEDDING_ALLOW_DOWNLOAD", "false").lower() == "true"
+    # Dedicated embedding service (Phase 3). Disabled by default so the app
+    # keeps working with lexical retrieval when no service is configured.
+    embedding_service_enabled: bool = os.getenv("EMBEDDING_SERVICE_ENABLED", "false").lower() == "true"
+    embedding_service_url: str = os.getenv("EMBEDDING_SERVICE_URL", "")
+    embedding_service_api_key: str = os.getenv("EMBEDDING_SERVICE_API_KEY", "")
+    embedding_service_timeout: float = float(os.getenv("EMBEDDING_SERVICE_TIMEOUT", "3"))
+    embedding_text_dim: int = int(os.getenv("EMBEDDING_TEXT_DIM", "1024"))
+    embedding_image_dim: int = int(os.getenv("EMBEDDING_IMAGE_DIM", "768"))
     email_enabled: bool = os.getenv("EMAIL_ENABLED", "false").lower() == "true"
     rag_min_confidence: float = float(os.getenv("RAG_MIN_CONFIDENCE", "0.45"))
     rag_dense_min_similarity: float = float(os.getenv("RAG_DENSE_MIN_SIMILARITY", "0.40"))

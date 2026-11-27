@@ -163,7 +163,8 @@ def match_products(attrs: VisualAttributes, shop_id, limit=3):
     """Rank live products against extracted attributes.
 
     Returns dicts {product, score, quality, matched} sorted best-first, where
-    quality is 'exact' (type+colour), 'close' (type), 'related' (same category).
+    quality is 'strong_match' (type+colour), 'close' (type), 'related' (same
+    category). NULL stock is UNKNOWN: it is neither in stock nor sold out.
     """
     wanted_types = _type_tokens(f"{attrs.category} {attrs.style}")
     wanted_colors = _color_tokens(" ".join([attrs.color, *attrs.secondary_colors]))
@@ -208,7 +209,7 @@ def match_products(attrs: VisualAttributes, shop_id, limit=3):
 
     for item in scored:
         if item["type_hit"] and item["color_hit"]:
-            item["quality"] = "exact"
+            item["quality"] = "strong_match"
         elif item["type_hit"]:
             item["quality"] = "close"
         elif item["product"]["category"] in type_categories or (
@@ -218,9 +219,16 @@ def match_products(attrs: VisualAttributes, shop_id, limit=3):
             item["quality"] = "none"
     scored.sort(key=lambda item: (-item["score"], item["product"]["product_id"]))
     useful = [item for item in scored if item["quality"] != "none"]
-    in_stock = [item for item in useful if item["product"]["stock_count"] > 0]
-    sold_out = [item for item in useful if item["product"]["stock_count"] <= 0 and item["quality"] in ("exact", "close")]
-    return {"in_stock": in_stock[:limit], "sold_out": sold_out[:1], "categories": sorted(type_categories)}
+
+    def stock_of(item):
+        return item["product"].get("stock_count")
+
+    in_stock = [item for item in useful if stock_of(item) is not None and stock_of(item) > 0]
+    sold_out = [item for item in useful if stock_of(item) is not None and stock_of(item) <= 0
+                and item["quality"] in ("strong_match", "close")]
+    unknown_stock = [item for item in useful if stock_of(item) is None]
+    return {"in_stock": in_stock[:limit], "sold_out": sold_out[:1],
+            "unknown_stock": unknown_stock[:limit], "categories": sorted(type_categories)}
 
 
 # ---------------------------------------------------------------- reply
@@ -239,9 +247,16 @@ def _product_block(product, bangla=False):
     price = money_text(product.get("effective_price"), product.get("currency"))
     if product.get("discounted_price") is not None and product.get("effective_price") < product.get("price"):
         price += f" (was {money_text(product['price'], product.get('currency'))})"
-    stock = product["stock_count"]
-    lines = [f"• {product['name']} — {price} · " + (f"{stock}টি স্টকে আছে" if bangla else
-             f"{stock} in stock" if stock > 5 else f"only {stock} left")]
+    stock = product.get("stock_count")
+    if stock is None:
+        stock_text = "স্টক নিশ্চিত করা প্রয়োজন" if bangla else "stock needs merchant confirmation"
+    elif stock > 5:
+        stock_text = f"{stock}টি স্টকে আছে" if bangla else f"{stock} in stock"
+    elif stock > 0:
+        stock_text = f"মাত্র {stock}টি বাকি" if bangla else f"only {stock} left"
+    else:
+        stock_text = "স্টকে নেই" if bangla else "sold out"
+    lines = [f"• {product['name']} — {price} · {stock_text}"]
     if product.get("description"):
         label = "ফ্যাব্রিক ও মান" if bangla else "Fabric & build"
         lines.append(f"  {label}: {product['description'].strip()}")
@@ -267,27 +282,34 @@ def compose_visual_reply(attrs: VisualAttributes, matches, locale="en"):
 
     phrase = attrs.describe()
     ack = (f"বুঝেছি, আপনি একটা {phrase} খুঁজছেন!" if bangla else f"I see you're looking for {_article(phrase)} {phrase}!")
-    in_stock, sold_out = matches["in_stock"], matches["sold_out"]
-    best = in_stock[0] if in_stock else None
+    in_stock = matches["in_stock"]
+    unknown_stock = matches.get("unknown_stock", [])
+    sold_out = matches["sold_out"]
+    # Preserve the similarity order; do not promote a known-stock alternative
+    # above a closer match whose stock merely needs confirmation.
+    available = sorted(in_stock + unknown_stock,
+                       key=lambda item: (-item["score"], item["product"]["product_id"]))
+    best = available[0] if available else None
 
-    if best and best["quality"] == "exact":
-        intro = "দারুণ খবর — আমাদের কাছে প্রায় একই রকম একটি আছে:" if bangla else "Good news — we have a really close match:"
+    if best and best["quality"] == "strong_match":
+        intro = ("ছবির সঙ্গে বেশ মিল আছে এমন একটি পণ্য আমাদের আছে:" if bangla else
+                 "This looks very similar to your photo — here's the closest we have:")
     elif best and best["quality"] == "close":
-        intro = ("হুবহু এই রঙটা নেই, তবে সবচেয়ে কাছাকাছি যেটা আছে:" if bangla else
-                 "We don't have that exact look, but here's the closest we have in stock:")
+        intro = ("এই রঙটা এখন নেই, তবে সবচেয়ে কাছাকাছি যেটা আছে:" if bangla else
+                 "We don't have that same look, but here's the closest we have:")
     elif best:
-        intro = ("হুবহু এমনটা এই মুহূর্তে নেই, তবে কাছাকাছি কিছু বিকল্প দেখুন:" if bangla else
-                 "I don't have that exact style in stock right now, but these are the nearest alternatives:")
+        intro = ("ঠিক এমনটা এই মুহূর্তে নেই, তবে কাছাকাছি কিছু বিকল্প দেখুন:" if bangla else
+                 "I don't have that same style right now, but these are the nearest alternatives:")
     else:
         intro = ""
 
     parts = [ack]
-    if sold_out and (not best or best["quality"] != "exact"):
+    if sold_out and (not best or best["quality"] != "strong_match"):
         item = sold_out[0]["product"]
         parts.append(f"আমাদের {item['name']} এর সাথে মিলে যায়, কিন্তু এখন স্টকে নেই।" if bangla else
                      f"Our {item['name']} is the closest match, but it's sold out right now.")
     if best:
-        shown = [best] + [item for item in in_stock[1:] if item["quality"] in ("exact", "close", "related")][:1]
+        shown = [best] + [item for item in available[1:] if item["quality"] in ("strong_match", "close", "related")][:1]
         parts.append(intro)
         parts.append("\n".join(_product_block(item["product"], bangla) for item in shown))
         parts.append("এটা অর্ডার করতে চান, নাকি অন্য রঙ বা সাইজ দেখবেন?" if bangla else

@@ -45,16 +45,14 @@ def import_catalog(db, shop_id, inputs):
     # Archive, never delete. Stable IDs and all order FKs survive.
     for row in db.query(Product).filter_by(shop_id=shop_id).all():
         if row.product_id not in ids:
-            entry = db.get(CatalogEntry, row.product_id)
+            entry = db.get(CatalogEntry, (shop_id, row.product_id))
             if not entry:
                 entry = CatalogEntry(product_id=row.product_id, shop_id=shop_id, currency="BDT", payload={}, documents=[])
                 db.add(entry)
             entry.active = False
     for source in catalog["products"]:
         product_id = source["product_id"]
-        row = db.get(Product, product_id)
-        if row and row.shop_id != shop_id:
-            raise ValueError("Product ID belongs to another shop")
+        row = db.get(Product, (shop_id, product_id))
         if not row:
             row = Product(product_id=product_id, shop_id=shop_id, price=source["price"],
                           discounted_price=source["discounted_price"], stock_count=source["stock_count"],
@@ -65,12 +63,12 @@ def import_catalog(db, shop_id, inputs):
         row.description = "\n".join(source["description"].values()) + "\n" + "\n".join(source["notes"].values())
         row.status = "Needs confirmation" if row.stock_count is None else "In Stock" if row.stock_count > 0 else "Out of Stock"
         db.flush()
-        entry = db.get(CatalogEntry, product_id)
+        entry = db.get(CatalogEntry, (shop_id, product_id))
         if not entry:
             entry = CatalogEntry(product_id=product_id, shop_id=shop_id, currency=source["currency"] or catalog["currency"])
             db.add(entry)
         entry.active, entry.payload, entry.documents = True, source, docs[product_id]
-        image = db.get(ProductImage, product_id)
+        image = db.get(ProductImage, (shop_id, product_id))
         if not image:
             image = ProductImage(product_id=product_id, shop_id=shop_id)
             db.add(image)

@@ -61,7 +61,7 @@ def test_public_product_detail_is_exact_and_does_not_need_a_session(client):
 def test_public_product_detail_uses_live_price_stock_and_saved_image_label(client):
     from models import Product
     with transaction() as db:
-        product = db.get(Product, 'SKU_101')
+        product = db.get(Product, ('shop_01', 'SKU_101'))
         product.discounted_price = 17.25
         product.stock_count = 3
         db.add(ProductImage(product_id='SKU_101', shop_id='shop_01',

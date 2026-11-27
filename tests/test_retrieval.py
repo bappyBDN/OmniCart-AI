@@ -80,7 +80,7 @@ def test_attribute_only_queries_use_sql_filters_not_empty_search(store):
 
 def test_live_sql_stock_and_prices_not_json(store):
     with transaction() as db:
-        p = db.get(Product, "SKU_101")
+        p = db.get(Product, ("shop_01", "SKU_101"))
         p.stock_count, p.price, p.discounted_price = 3, 15, 12
     product = HybridRetriever(False).search("SKU_101", "shop_01", "product", 1)[0]["data"]
     assert product["stock_count"] == 3

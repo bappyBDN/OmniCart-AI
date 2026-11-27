@@ -44,7 +44,7 @@ def test_import_archives_demo_catalog_and_adds_active_products(store):
         for source in sources:
             assert "bn" in source.translations and "banglish" in source.translations
         # A catalog product has a local photo record, never an invented price.
-        image = db.get(ProductImage, sorted(active_ids)[0])
+        image = db.get(ProductImage, ('shop_01', sorted(active_ids)[0]))
         assert image and image.image_url.startswith("/api/catalog-media/")
 
 

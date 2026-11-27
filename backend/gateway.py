@@ -147,6 +147,7 @@ class LocalGateway:
         with transaction() as db:
             rows = db.query(KnowledgeDocument, KnowledgeVersion).join(
                 KnowledgeVersion,
+                (KnowledgeVersion.shop_id == KnowledgeDocument.shop_id) &
                 (KnowledgeVersion.document_id == KnowledgeDocument.document_id) &
                 (KnowledgeVersion.version == KnowledgeDocument.published_version),
             ).filter(KnowledgeDocument.shop_id == self.shop_id).limit(_limit(limit)).all()

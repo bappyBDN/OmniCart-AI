@@ -266,9 +266,14 @@ def product_dict(product) -> dict:
     effective = discount if discount is not None and product.price is not None and 0 <= discount < product.price else product.price
     entry = product.catalog_entry
     payload = entry.payload if entry else {}
+    # NUMERIC is stored exactly in SQL. Convert at the API/serialisation boundary
+    # so existing JSON responses and cost arithmetic keep their historic shape.
+    price = float(product.price) if product.price is not None else None
+    discount = float(discount) if discount is not None else None
+    effective = float(effective) if effective is not None else None
     data = {
         "product_id": product.product_id, "name": product.name, "category": product.category,
-        "price": product.price, "discounted_price": discount, "effective_price": effective,
+        "price": price, "discounted_price": discount, "effective_price": effective,
         "stock_count": product.stock_count, "status": "Needs confirmation" if product.stock_count is None else "Out of Stock" if product.stock_count <= 0 else "In Stock",
         "colors": product.colors or [], "sizes": product.sizes or [], "description": product.description or "",
         "image_url": product_image_url(product.product_id),
@@ -397,6 +402,7 @@ class HybridRetriever:
                 ))
         published = db.query(KnowledgeDocument, KnowledgeVersion).join(
             KnowledgeVersion,
+            (KnowledgeVersion.shop_id == KnowledgeDocument.shop_id) &
             (KnowledgeVersion.document_id == KnowledgeDocument.document_id) &
             (KnowledgeVersion.version == KnowledgeDocument.published_version),
         ).filter(KnowledgeDocument.shop_id == shop_id).all()

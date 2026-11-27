@@ -14,7 +14,7 @@ def test_checkout_is_proposal_until_confirmed(store):
     draft = prepare_order(store["customer_id"], "shop_01", "SKU_101", 2)
     with transaction() as db:
         assert db.query(Order).count() == 0
-        assert db.get(Product, "SKU_101").stock_count == 15
+        assert db.get(Product, ("shop_01", "SKU_101")).stock_count == 15
     receipt = confirm_order(store["customer_id"], "shop_01", draft["draft_id"])
     assert receipt["unit_price"] == 19.99
     assert receipt["total_price"] == 39.98
@@ -22,7 +22,7 @@ def test_checkout_is_proposal_until_confirmed(store):
     assert confirm_order(store["customer_id"], "shop_01", draft["draft_id"])["order_id"] == receipt["order_id"]
     with transaction() as db:
         assert db.query(Order).count() == 1
-        assert db.get(Product, "SKU_101").stock_count == 13
+        assert db.get(Product, ("shop_01", "SKU_101")).stock_count == 13
 
 
 @pytest.mark.parametrize("quantity", [0, -1, 1.5, True, 1001])
@@ -40,7 +40,7 @@ def test_stock_and_tenant_checks(store):
 def test_expiry_and_price_change(store):
     draft = prepare_order(store["customer_id"], "shop_01", "SKU_101", 1)
     with transaction() as db:
-        db.get(Product, "SKU_101").discounted_price = 10
+        db.get(Product, ("shop_01", "SKU_101")).discounted_price = 10
     with pytest.raises(HTTPException, match="Price changed"):
         confirm_order(store["customer_id"], "shop_01", draft["draft_id"])
     with transaction() as db:
@@ -57,7 +57,7 @@ def test_concurrent_double_confirm_is_idempotent(store):
         receipts = list(pool.map(confirm, range(4)))
     assert len({r["order_id"] for r in receipts}) == 1
     with transaction() as db:
-        assert db.get(Product, "SKU_101").stock_count == 13
+        assert db.get(Product, ("shop_01", "SKU_101")).stock_count == 13
 
 
 def test_concurrent_orders_cannot_oversell(store):
@@ -72,4 +72,4 @@ def test_concurrent_orders_cannot_oversell(store):
         results = list(pool.map(confirm, [draft1, draft2]))
     assert len([r for r in results if r]) == 1
     with transaction() as db:
-        assert db.get(Product, "SKU_103").stock_count >= 0
+        assert db.get(Product, ("shop_01", "SKU_103")).stock_count >= 0

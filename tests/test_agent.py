@@ -34,12 +34,17 @@ def test_followup_focus_and_media_intent(store):
     assert agent.followup_focus("i need 6", ambiguous) is None
 
 
-def test_quantity_followup_answers_from_focused_stock_only(store):
+def test_quantity_followup_uses_focused_stock_and_returns_similar_cards(store):
     previous = [{"id": "product:SKU_108", "kind": "product", "title": "Backpack",
                  "data": {"product_id": "SKU_108"}}]
     result = agent.run_agent(store["customer_id"], "shop_01", "i need 6", [], previous_sources=previous)
-    assert {source["id"] for source in result["sources"]} == {"product:SKU_108"}
-    assert result["show_images"] is False
+    returned = {source["id"] for source in result["sources"]}
+    assert "product:SKU_108" in returned
+    # Phase 1 / defect 14: every similar product named in the text must also be
+    # returned as a card source, never text-only.
+    assert len(returned) > 1
+    assert all(source["kind"] == "product" for source in result["sources"])
+    assert result["show_images"] is True
     assert result["degraded"] is False
     assert result["model_tier"] == "rules"
     assert "5" in result["answer"]

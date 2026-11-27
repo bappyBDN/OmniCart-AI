@@ -29,7 +29,7 @@ def load_edgecases(root=ROOT):
 def import_edgecases(db, shop_id, entries):
     existing = {row.source_id for row in db.query(EdgeCaseQA).filter_by(shop_id=shop_id)}
     for entry in entries:
-        row = db.get(EdgeCaseQA, entry["id"])
+        row = db.get(EdgeCaseQA, (shop_id, entry["id"]))
         if row and row.shop_id != shop_id:
             raise ValueError(f"Edge case {entry['id']} belongs to another shop")
         if not row:

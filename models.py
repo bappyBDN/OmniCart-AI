@@ -1,4 +1,5 @@
-from sqlalchemy import create_engine, Column, String, Integer, Float, Text, ForeignKey, DateTime, JSON, Boolean
+from sqlalchemy import (create_engine, Column, String, Integer, Float, Text, ForeignKey,
+                        DateTime, JSON, Boolean, Numeric, ForeignKeyConstraint, CheckConstraint)
 from sqlalchemy.orm import declarative_base, relationship
 from datetime import datetime
  
@@ -43,49 +44,67 @@ class Customer(Base):
 # ৩. Product Table (Updated for Real-world JSON)
 class Product(Base):
     __tablename__ = "products"
-    
-    product_id = Column(String, primary_key=True)  # প্রাইমারি কী
+    __table_args__ = (
+        CheckConstraint("price IS NULL OR price >= 0", name="ck_products_price_nonnegative"),
+        CheckConstraint("discounted_price IS NULL OR discounted_price >= 0",
+                        name="ck_products_discounted_price_nonnegative"),
+        CheckConstraint("stock_count IS NULL OR stock_count >= 0",
+                        name="ck_products_stock_nonnegative"),
+    )
+
+    # Tenant-local identity: two shops may each have SKU_101.
+    shop_id = Column(String, ForeignKey("shops.shop_id"), primary_key=True)
+    product_id = Column(String, primary_key=True)
     name = Column(String, nullable=False)
     category = Column(String)
-    price = Column(Float, nullable=True)  # NULL is unconfirmed, never free.
-    discounted_price = Column(Float)             # 🆕 নতুন: ডিসকাউন্ট প্রাইস
+    price = Column(Numeric(12, 2), nullable=True)  # NULL is unconfirmed, never free.
+    discounted_price = Column(Numeric(12, 2))
     stock_count = Column(Integer().evaluates_none(), default=0)
-    
-    # 🆕 ম্যাজিক: JSON টাইপ ব্যবহার করলে সরাসরি ["M", "L"] লিস্ট সেভ করা যাবে!
-    colors = Column(JSON)                        
-    sizes = Column(JSON)                         
-    
-    status = Column(String, default="In Stock")  # 🆕 নতুন: ইন স্টক নাকি আউট অফ স্টক
-    description = Column(Text)                   # 🆕 নতুন: প্রোডাক্টের বিস্তারিত বিবরণ
-    
-    shop_id = Column(String, ForeignKey("shops.shop_id"), nullable=False)
+
+    colors = Column(JSON)
+    sizes = Column(JSON)
+
+    status = Column(String, default="In Stock")
+    description = Column(Text)
+
     shop = relationship("Shop", back_populates="products")
-    catalog_entry = relationship("CatalogEntry", uselist=False, lazy="joined")
-    
-    # Relationship with Orders
-    orders = relationship("Order", back_populates="product")
+    catalog_entry = relationship(
+        "CatalogEntry", uselist=False, lazy="joined",
+        foreign_keys="[CatalogEntry.shop_id, CatalogEntry.product_id]",
+    )
+    orders = relationship("Order", back_populates="product", overlaps="orders",
+                          foreign_keys="[Order.shop_id, Order.product_id]")
  
 # ৪. Order Table - 🔥 FIXED VERSION
 class Order(Base):
     __tablename__ = "orders"
-    
-    order_id = Column(Integer, primary_key=True, autoincrement=True)  # Auto-increment করা হয়েছে
+    __table_args__ = (
+        ForeignKeyConstraint(["shop_id", "product_id"],
+                             ["products.shop_id", "products.product_id"],
+                             name="fk_orders_shop_product"),
+        CheckConstraint("price >= 0", name="ck_orders_price_nonnegative"),
+        CheckConstraint("total_price >= 0", name="ck_orders_total_nonnegative"),
+    )
+
+    order_id = Column(Integer, primary_key=True, autoincrement=True)
     product_name = Column(String, nullable=False)
-    quantity = Column(Integer, nullable=False, default=1)  # 🆕 যোগ করা হয়েছে
-    price = Column(Float, nullable=False)
-    total_price = Column(Float, nullable=False)  # 🆕 যোগ করা হয়েছে
+    quantity = Column(Integer, nullable=False, default=1)
+    price = Column(Numeric(12, 2), nullable=False)
+    total_price = Column(Numeric(12, 2), nullable=False)
+    currency = Column(String)
+    unit_price_snapshot = Column(Numeric(12, 2))
+    line_total_snapshot = Column(Numeric(12, 2))
     status = Column(String, default="Pending")
     created_at = Column(DateTime, default=datetime.utcnow)
-    
-    # 🛠️ FIXED: customers.id এর বদলে customers.customer_id হবে
+
     customer_id = Column(Integer, ForeignKey("customers.customer_id"), nullable=False)
     customer = relationship("Customer", back_populates="orders")
-    
-    product_id = Column(String, ForeignKey("products.product_id"))  # String হবে কারণ Product এ String আছে
-    product = relationship("Product", back_populates="orders")
-    
+
+    product_id = Column(String)
     shop_id = Column(String, ForeignKey("shops.shop_id"), nullable=False)
-    shop = relationship("Shop", back_populates="orders")
+    product = relationship("Product", back_populates="orders", overlaps="orders",
+                           foreign_keys=[shop_id, product_id])
+    shop = relationship("Shop", back_populates="orders", overlaps="orders,product")
  
 # ৫. Policy Table
 class Policy(Base):

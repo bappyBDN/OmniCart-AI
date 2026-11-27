@@ -463,7 +463,7 @@ def upsert_product(product_id: str, payload: ProductInput, session=Depends(admin
     if payload.discounted_price is not None and payload.discounted_price > payload.price:
         raise HTTPException(422, "Discounted price cannot exceed list price")
     with transaction() as db:
-        product = db.get(Product, product_id)
+        product = db.get(Product, (session.shop_id, product_id))
         if product and product.shop_id != session.shop_id:
             raise HTTPException(404, "Product not found")
         if not product:
@@ -471,7 +471,8 @@ def upsert_product(product_id: str, payload: ProductInput, session=Depends(admin
             db.add(product)
         for key, value in payload.model_dump().items():
             setattr(product, key, value)
-        product.status = "In Stock" if product.stock_count else "Out of Stock"
+        product.status = ("Needs confirmation" if product.stock_count is None
+                          else "In Stock" if product.stock_count > 0 else "Out of Stock")
         db.flush()
         return product_dict(product)
 
@@ -486,7 +487,7 @@ def set_product_image(product_id: str, payload: ImageInput, session=Depends(admi
         product = db.query(Product).filter_by(product_id=product_id, shop_id=session.shop_id).first()
         if not product:
             raise HTTPException(404, "Product not found")
-        image = db.get(ProductImage, product_id)
+        image = db.get(ProductImage, (session.shop_id, product_id))
         if payload.image_url:
             if not image:
                 image = ProductImage(product_id=product_id, shop_id=session.shop_id, image_url=payload.image_url)

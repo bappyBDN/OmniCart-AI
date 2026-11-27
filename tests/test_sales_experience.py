@@ -37,7 +37,7 @@ def isolated_image_only_origin(monkeypatch):
 
 def source_for(product_id='SKU_101'):
     with transaction() as db:
-        return agent.catalog_product_source(product_dict(db.get(Product, product_id)))
+        return agent.catalog_product_source(product_dict(db.get(Product, ('shop_01', product_id))))
 
 
 @pytest.mark.parametrize('query', ['Hello ai', 'Hello AI!', 'Hello, AI', 'Good morning', 'Hey there', 'How are you?', 'Thanks bot', 'হ্যালো'])
@@ -88,7 +88,7 @@ def test_browse_empty_inventory_is_honest(store, no_models):
 
 def test_browse_tool_uses_discounted_live_price_and_bounds(store):
     with transaction() as db:
-        db.get(Product, 'SKU_101').discounted_price = 17.25
+        db.get(Product, ('shop_01', 'SKU_101')).discounted_price = 17.25
     tools = {tool.name: tool for tool in agent.build_tools(store['customer_id'], 'shop_01', 'show products')}
     response = tools['browse_catalog_tool'].invoke({'limit': 100})
     assert len(response['sources']) == 5
@@ -200,7 +200,7 @@ def test_web_remembers_recommendation_across_greeting_and_fetches_fresh_stock(cl
     sizes = ask('what sizes?')
     assert 'M, L, XL' in sizes['answer'] and not sizes['show_images']
     with transaction() as db:
-        db.get(Product, 'SKU_101').stock_count = 3
+        db.get(Product, ('shop_01', 'SKU_101')).stock_count = 3
     stock = ask('is it in stock?')
     assert '3 in stock' in stock['answer']
     other_token = client.post('/api/sessions').json()['token']

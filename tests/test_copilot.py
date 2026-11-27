@@ -202,7 +202,7 @@ def test_photo_is_matched_to_live_catalogue_with_human_reply(store, monkeypatch)
     assert 'Premium Cotton T-Shirt' in result['answer'] and '৳19.99' in result['answer']
     assert 'Fabric & build: 100% pure cotton' in result['answer'] and 'Sizes: M, L, XL' in result['answer']
     assert result['sources'][0]['data']['product_id'] == 'SKU_101'
-    assert result['sources'][0]['match_quality'] == 'exact'
+    assert result['sources'][0]['match_quality'] == 'strong_match'
     assert result['focus_product_id'] == 'SKU_101' and result['show_images'] is True
     assert result['visual_attributes']['color'] == 'navy blue'
     assert result['sub_agent'] == 'visual_agent'
@@ -320,7 +320,7 @@ def test_more_details_postback_asks_agent_about_that_product(store, monkeypatch)
 
 def stock(product_id='SKU_101'):
     with transaction() as db:
-        return db.get(Product, product_id).stock_count
+        return db.get(Product, ('shop_01', product_id)).stock_count
 
 
 def test_full_messenger_order_flow_creates_order_and_decrements_stock(store, monkeypatch, no_models, offline_alerts):

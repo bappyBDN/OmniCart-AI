@@ -183,13 +183,13 @@ def test_full_reported_conversation_and_checkout(client, complete_headers, store
     # Only product-details generation and validation needed a model.
     assert len(model_calls) == 2
     with transaction() as db:
-        assert db.get(Product, 'SKU_140').stock_count == 12
+        assert db.get(Product, ('shop_01', 'SKU_140')).stock_count == 12
         assert db.query(Order).count() == 0 and db.query(SupportCase).count() == 0
     receipt = client.post(f"/api/checkout/{draft['draft_id']}/confirm", headers=complete_headers)
     assert receipt.status_code == 200
     assert receipt.json()['total_price'] == 89.98
     with transaction() as db:
-        assert db.get(Product, 'SKU_140').stock_count == 10
+        assert db.get(Product, ('shop_01', 'SKU_140')).stock_count == 10
 
 
 def test_short_quantity_reply_keeps_bangla_and_rechecks_stock(store, no_model):
@@ -198,7 +198,7 @@ def test_short_quantity_reply_keeps_bangla_and_rechecks_stock(store, no_model):
     assert result['locale'] == 'bn-Latn' and 'ড্রাফট প্রস্তুত' in result['answer']
     assert result['drafts'][0]['total_price'] == 89.98
     with transaction() as db:
-        db.get(Product, 'SKU_140').stock_count = 0
+        db.get(Product, ('shop_01', 'SKU_140')).stock_count = 0
     unavailable = agent.run_agent(store['customer_id'], 'shop_01', 'I want to buy 2', [], previous_sources=previous())
     assert not unavailable['drafts'] and not unavailable['handoff']
     assert '0 units' in unavailable['answer']
@@ -248,7 +248,7 @@ def test_active_human_review_blocks_automated_draft_tool(store, no_model):
     assert result['human_intervention']
     with transaction() as db:
         assert db.query(OrderDraft).count() == 0
-        assert db.get(Product, 'SKU_140').stock_count == 12
+        assert db.get(Product, ('shop_01', 'SKU_140')).stock_count == 12
 
 
 def test_order_request_cannot_resume_existing_human_handoff(client, complete_headers, no_model):

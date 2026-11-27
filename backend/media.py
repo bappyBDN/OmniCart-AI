@@ -72,7 +72,7 @@ def product_image_record(product_id: str, shop_id: str):
         product = db.query(Product).filter_by(product_id=product_id, shop_id=shop_id).filter(active_product()).first()
         if not product:
             return None, None
-        image = db.get(ProductImage, product_id)
+        image = db.get(ProductImage, (shop_id, product_id))
         return product, image
 
 

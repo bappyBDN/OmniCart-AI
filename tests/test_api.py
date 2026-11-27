@@ -144,7 +144,7 @@ def test_cancel_restocks_once(client, complete_headers, admin_headers):
     for _ in range(2):
         assert client.patch(f"/api/admin/orders/{order['order_id']}", headers=admin_headers, json={'status': 'Cancelled'}).status_code == 200
     with transaction() as db:
-        assert db.get(Product, 'SKU_101').stock_count == 15
+        assert db.get(Product, ('shop_01', 'SKU_101')).stock_count == 15
     assert client.patch(f"/api/admin/orders/{order['order_id']}", headers=admin_headers, json={'status': 'Pending'}).status_code == 409
 
 

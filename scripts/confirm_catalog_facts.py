@@ -24,8 +24,8 @@ def confirm(price, stock, currency):
             product.price = price
             product.discounted_price = None
             product.stock_count = stock
-            product.status = "In Stock" if (stock or 0) > 0 else "Out of Stock"
-            entry = db.get(CatalogEntry, product.product_id)
+            product.status = "In Stock" if stock > 0 else "Out of Stock"
+            entry = db.get(CatalogEntry, (product.shop_id, product.product_id))
             if entry:
                 entry.currency = currency
         return [row.product_id for row in rows]

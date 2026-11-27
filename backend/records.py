@@ -1,6 +1,8 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, JSON, LargeBinary, String, Text, UniqueConstraint
+from sqlalchemy import (Boolean, CheckConstraint, Column, DateTime, Float, ForeignKey,
+                        ForeignKeyConstraint, Integer, JSON, LargeBinary, Numeric, String,
+                        Text, UniqueConstraint)
 
 from models import Base
 
@@ -8,8 +10,13 @@ from models import Base
 class CatalogEntry(Base):
     """Additive provenance; historical products are not deleted."""
     __tablename__ = "catalog_entries"
-    product_id = Column(String, ForeignKey("products.product_id"), primary_key=True)
-    shop_id = Column(String, ForeignKey("shops.shop_id"), nullable=False, index=True)
+    __table_args__ = (
+        ForeignKeyConstraint(["shop_id", "product_id"],
+                             ["products.shop_id", "products.product_id"],
+                             name="fk_catalog_entries_shop_product"),
+    )
+    shop_id = Column(String, ForeignKey("shops.shop_id"), primary_key=True, index=True)
+    product_id = Column(String, primary_key=True)
     active = Column(Boolean, nullable=False, default=True)
     currency = Column(String)
     payload = Column(JSON, nullable=False, default=dict)
@@ -28,8 +35,8 @@ class PolicySource(Base):
 class EdgeCaseQA(Base):
     """Multilingual support Q&A pairs (semantic chunks), tagged by category/intent."""
     __tablename__ = "edgecase_qa"
+    shop_id = Column(String, ForeignKey("shops.shop_id"), primary_key=True, index=True)
     source_id = Column(String, primary_key=True)
-    shop_id = Column(String, ForeignKey("shops.shop_id"), nullable=False, index=True)
     category = Column(String, nullable=False, index=True)
     intent = Column(String, nullable=False)
     queries = Column(JSON, nullable=False)
@@ -66,20 +73,35 @@ class ChatTurn(Base):
 
 class OrderDraft(Base):
     __tablename__ = "api_order_drafts"
+    __table_args__ = (
+        ForeignKeyConstraint(["shop_id", "product_id"],
+                             ["products.shop_id", "products.product_id"],
+                             name="fk_api_order_drafts_shop_product"),
+        CheckConstraint("unit_price >= 0", name="ck_api_order_drafts_unit_price_nonnegative"),
+        CheckConstraint("quantity > 0", name="ck_api_order_drafts_quantity_positive"),
+    )
     draft_id = Column(String, primary_key=True)
     customer_id = Column(Integer, ForeignKey("customers.customer_id"), nullable=False)
     shop_id = Column(String, ForeignKey("shops.shop_id"), nullable=False)
-    product_id = Column(String, ForeignKey("products.product_id"), nullable=False)
+    product_id = Column(String, nullable=False)
     quantity = Column(Integer, nullable=False)
-    unit_price = Column(String, nullable=False)
+    unit_price = Column(Numeric(12, 2), nullable=False)
+    currency = Column(String)
+    unit_price_snapshot = Column(Numeric(12, 2))
+    line_total_snapshot = Column(Numeric(12, 2))
     order_id = Column(Integer, ForeignKey("orders.order_id"))
     expires_at = Column(DateTime, nullable=False)
 
 
 class ProductImage(Base):
     __tablename__ = "api_product_images"
-    product_id = Column(String, ForeignKey("products.product_id"), primary_key=True)
-    shop_id = Column(String, ForeignKey("shops.shop_id"), nullable=False, index=True)
+    __table_args__ = (
+        ForeignKeyConstraint(["shop_id", "product_id"],
+                             ["products.shop_id", "products.product_id"],
+                             name="fk_api_product_images_shop_product"),
+    )
+    shop_id = Column(String, ForeignKey("shops.shop_id"), primary_key=True, index=True)
+    product_id = Column(String, primary_key=True)
     image_url = Column(String, nullable=False)
     alt_text = Column(String, nullable=False, default="Product image")
     updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -145,9 +167,14 @@ class AuditEvent(Base):
 
 class ProductAlias(Base):
     __tablename__ = "product_aliases"
-    __table_args__ = (UniqueConstraint("shop_id", "product_id", "alias"),)
+    __table_args__ = (
+        UniqueConstraint("shop_id", "product_id", "alias"),
+        ForeignKeyConstraint(["shop_id", "product_id"],
+                             ["products.shop_id", "products.product_id"],
+                             name="fk_product_aliases_shop_product"),
+    )
     id = Column(Integer, primary_key=True)
-    product_id = Column(String, ForeignKey("products.product_id"), nullable=False, index=True)
+    product_id = Column(String, nullable=False, index=True)
     shop_id = Column(String, ForeignKey("shops.shop_id"), nullable=False, index=True)
     alias = Column(String, nullable=False)
     locale = Column(String, nullable=False, default="bn-Latn")
@@ -155,8 +182,8 @@ class ProductAlias(Base):
 
 class KnowledgeDocument(Base):
     __tablename__ = "knowledge_documents"
+    shop_id = Column(String, ForeignKey("shops.shop_id"), primary_key=True, index=True)
     document_id = Column(String, primary_key=True)
-    shop_id = Column(String, ForeignKey("shops.shop_id"), nullable=False, index=True)
     title = Column(String, nullable=False)
     category = Column(String, nullable=False, default="faq")
     locale = Column(String, nullable=False, default="en")
@@ -166,7 +193,13 @@ class KnowledgeDocument(Base):
 
 class KnowledgeVersion(Base):
     __tablename__ = "knowledge_versions"
-    document_id = Column(String, ForeignKey("knowledge_documents.document_id"), primary_key=True)
+    __table_args__ = (
+        ForeignKeyConstraint(["shop_id", "document_id"],
+                             ["knowledge_documents.shop_id", "knowledge_documents.document_id"],
+                             name="fk_knowledge_versions_shop_document"),
+    )
+    shop_id = Column(String, ForeignKey("shops.shop_id"), primary_key=True)
+    document_id = Column(String, primary_key=True)
     version = Column(Integer, primary_key=True)
     content = Column(Text, nullable=False)
     checksum = Column(String, nullable=False)

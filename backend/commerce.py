@@ -64,8 +64,12 @@ def parse_order_code(text):
 def order_dict(order, email_status=None):
     return {"order_id": order.order_id, "reference": f"ORD_{order.order_id}", "order_code": order_code(order.order_id),
             "product_id": order.product_id,
-            "product_name": order.product_name, "quantity": order.quantity, "unit_price": order.price,
-            "total_price": order.total_price, "status": order.status,
+            "product_name": order.product_name, "quantity": order.quantity,
+            "unit_price": float(order.price) if order.price is not None else None,
+            "total_price": float(order.total_price) if order.total_price is not None else None,
+            "currency": order.currency, "status": order.status,
+            "unit_price_snapshot": float(order.unit_price_snapshot) if order.unit_price_snapshot is not None else None,
+            "line_total_snapshot": float(order.line_total_snapshot) if order.line_total_snapshot is not None else None,
             "created_at": order.created_at.isoformat() if order.created_at else None, "email_status": email_status}
 
 
@@ -89,11 +93,15 @@ def quote_product(shop_id, product_id, quantity):
 
 
 def draft_dict(db, draft):
-    product = db.get(Product, draft.product_id)
+    product = db.get(Product, (draft.shop_id, draft.product_id))
     customer = db.get(Customer, draft.customer_id)
     return {"draft_id": draft.draft_id, "product_id": draft.product_id, "product_name": product.name if product else "Unavailable",
             "quantity": draft.quantity, "unit_price": float(draft.unit_price),
-            "total_price": float(money(draft.unit_price) * draft.quantity), "expires_at": draft.expires_at.isoformat(),
+            "total_price": float(money(draft.unit_price) * draft.quantity),
+            "currency": draft.currency,
+            "unit_price_snapshot": float(draft.unit_price_snapshot) if draft.unit_price_snapshot is not None else float(draft.unit_price),
+            "line_total_snapshot": float(draft.line_total_snapshot) if draft.line_total_snapshot is not None else float(money(draft.unit_price) * draft.quantity),
+            "expires_at": draft.expires_at.isoformat(),
              "confirmation_required": draft.order_id is None, "order_id": draft.order_id,
              "name": customer.name if customer else None,
             "phone": customer.phone_number if customer else None,
@@ -127,13 +135,17 @@ def prepare_order(customer_id, shop_id, product_id, quantity, *, automated=False
             return {"error": "unsupported_currency", "message": f"This checkout currently supports {settings.currency} only; contact the merchant."}
         if product.stock_count < quantity:
             return {"error": "insufficient_stock", "available": product.stock_count}
-        price = str(money(product_dict(product)["effective_price"]))
+        price = money(product_dict(product)["effective_price"])
+        currency = product_dict(product)["currency"]
         # Repeated agent calls reuse an existing unexpired proposal.
         draft = db.query(OrderDraft).filter_by(customer_id=customer_id, shop_id=shop_id, product_id=product_id,
-            quantity=quantity, unit_price=price, order_id=None).filter(OrderDraft.expires_at > datetime.utcnow()).first()
+            quantity=quantity, unit_price=price, currency=currency, order_id=None).filter(
+                OrderDraft.expires_at > datetime.utcnow()).first()
         if not draft:
             draft = OrderDraft(draft_id=str(uuid4()), customer_id=customer_id, shop_id=shop_id,
-                product_id=product_id, quantity=quantity, unit_price=price, expires_at=datetime.utcnow() + timedelta(minutes=15))
+                product_id=product_id, quantity=quantity, unit_price=price, currency=currency,
+                unit_price_snapshot=price, line_total_snapshot=money(price * quantity),
+                expires_at=datetime.utcnow() + timedelta(minutes=15))
             db.add(draft)
             db.flush()
         return draft_dict(db, draft)
@@ -176,8 +188,12 @@ def confirm_order(customer_id, shop_id, draft_id, phone=None, address=None, name
             Product.stock_count >= draft.quantity).values(stock_count=Product.stock_count - draft.quantity))
         if result.rowcount != 1:
             raise HTTPException(409, "Insufficient stock. Please request a new quote.")
+        unit_price = money(draft.unit_price)
         order = Order(customer_id=customer_id, product_id=product.product_id, product_name=product.name,
-            quantity=draft.quantity, price=float(draft.unit_price), total_price=float(money(draft.unit_price) * draft.quantity),
+            quantity=draft.quantity, price=unit_price, total_price=money(unit_price * draft.quantity),
+            currency=draft.currency or product_dict(product)["currency"],
+            unit_price_snapshot=draft.unit_price_snapshot or unit_price,
+            line_total_snapshot=draft.line_total_snapshot or money(unit_price * draft.quantity),
             status="Pending", shop_id=shop_id)
         db.add(order)
         db.flush()

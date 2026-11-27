@@ -70,7 +70,7 @@ def main():
                 assert records[5]['drafts'][0]['total_price'] == 89.98
                 assert '৳5,398.80' in records[7]['answer']
                 with database.transaction() as db:
-                    assert db.get(Product, 'SKU_140').stock_count == 12
+                    assert db.get(Product, ('shop_01', 'SKU_140')).stock_count == 12
                     assert db.query(Order).count() == 0
             if args.output:
                 args.output.write_text(json.dumps({'isolated_database': True, 'live_models': True, 'passed': True, 'turns': records}, ensure_ascii=False, indent=2), encoding='utf-8')

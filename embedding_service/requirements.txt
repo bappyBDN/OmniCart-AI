@@ -8,3 +8,5 @@ sentence-transformers>=3,<6
 transformers>=4.40,<5
 huggingface-hub>=0.24,<2
 safetensors>=0.4,<1
+sentencepiece>=0.2,<1
+protobuf>=7.36,<8

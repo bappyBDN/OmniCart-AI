@@ -80,11 +80,9 @@ tar -C "$ROOT" --exclude='__pycache__' --exclude='*.pyc' --exclude='.pytest_cach
     --exclude='embedding_service/deploy/vm.env' -czf "$WORK/embedding_service.tgz" embedding_service
 umask 077
 printf 'EMBEDDING_API_KEY=%s\nEMBED_DOMAIN=%s\n' "$API_KEY" "$DOMAIN" > "$WORK/vm.env"
-gcloud compute scp --zone "$ZONE" "${PROJECT_ARGS[@]}" \
-  "$WORK/embedding_service.tgz" "$WORK/vm.env" "$INSTANCE:~/" >/dev/null
-
-echo "==> Install Docker (if needed), build and start (first build: 10-20 min)"
-gcloud compute ssh "$INSTANCE" --zone "$ZONE" "${PROJECT_ARGS[@]}" --command "bash -s" <<REMOTE
+# The remote steps travel as a file: on Windows, gcloud's PuTTY client writes
+# a host-key answer into stdin, so piping a script to `bash -s` is unreliable.
+cat > "$WORK/omnicart_remote.sh" <<REMOTE
 set -euo pipefail
 MEM_MB=\$(awk '/MemTotal/ {print int(\$2/1024)}' /proc/meminfo)
 echo "VM memory: \${MEM_MB} MB"
@@ -97,16 +95,19 @@ fi
 mkdir -p ~/$REMOTE_DIR
 tar -xzf ~/embedding_service.tgz -C ~/$REMOTE_DIR
 # Keep the secrets file out of the Docker build context (and out of the image).
-printf 'embedding_service/deploy/vm.env
-**/__pycache__
-**/*.pyc
-' > ~/$REMOTE_DIR/.dockerignore
+printf 'embedding_service/deploy/vm.env\n**/__pycache__\n**/*.pyc\n' > ~/$REMOTE_DIR/.dockerignore
 install -m 600 ~/vm.env ~/$REMOTE_DIR/embedding_service/deploy/vm.env
-rm -f ~/vm.env ~/embedding_service.tgz
+rm -f ~/vm.env ~/embedding_service.tgz ~/omnicart_remote.sh
 cd ~/$REMOTE_DIR/embedding_service/deploy
 sudo docker compose -f docker-compose.vm.yml up -d --build
 sudo docker compose -f docker-compose.vm.yml ps
 REMOTE
+gcloud compute scp --quiet --zone "$ZONE" "${PROJECT_ARGS[@]}" \
+  "$WORK/embedding_service.tgz" "$WORK/vm.env" "$WORK/omnicart_remote.sh" "$INSTANCE:." >/dev/null
+
+echo "==> Install Docker (if needed), build and start (first build: 10-20 min)"
+gcloud compute ssh "$INSTANCE" --quiet --zone "$ZONE" "${PROJECT_ARGS[@]}" \
+  --command "bash ~/omnicart_remote.sh" </dev/null
 
 echo "==> Waiting for $URL/health (models load after start; certificate on first request)"
 for _ in $(seq 1 60); do

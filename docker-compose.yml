@@ -1,6 +1,17 @@
+# OmniCart AI local/production-like stack.
+#
+#   docker compose up -d --build              db + migrate + app
+#   docker compose --profile test run --rm tests
+#   docker compose --profile embeddings up -d embeddings   (self-hosted models;
+#       then set EMBEDDING_SERVICE_URL=http://embeddings:8080 in .env)
+#
+# The default embedding service is the private Hugging Face Space configured in
+# .env (scripts/deploy_hf_space.py). If it is down, the app uses keyword search.
 services:
   db:
-    image: postgres:17-bookworm
+    # PostgreSQL 17 + pgvector (same data format as postgres:17, so the existing
+    # postgres-data volume is reused). Phase 2 needs the `vector` extension.
+    image: pgvector/pgvector:pg17
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DATABASE:-omnichat}
@@ -15,20 +26,19 @@ services:
       retries: 10
       start_period: 10s
 
-  app:
-    build:
+  # One-shot: create legacy tables if missing, then apply Alembic migrations
+  # (with the Phase 2 preflight checks). The app starts only if this succeeds.
+  migrate:
+    image: omnicart-ai:latest
+    build: &app-build
       context: .
       dockerfile: Dockerfile
+      target: runtime
       args:
         INSTALL_DENSE: ${DOCKER_INSTALL_DENSE:-false}
-    restart: unless-stopped
-    init: true
     env_file:
       - .env
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
+    environment: &app-db-env
       # An explicit container URL can point to an existing PostgreSQL instance.
       # Otherwise build the URL safely from components (passwords may contain @/:).
       DATABASE_URL: ${DOCKER_DATABASE_URL:-}
@@ -38,6 +48,36 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-omnicart}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       POSTGRES_DATABASE: ${POSTGRES_DATABASE:-omnichat}
+    depends_on:
+      db:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - >-
+        python -c "from backend.database import initialize; initialize()" &&
+        python scripts/migrate_phase2.py --apply &&
+        python scripts/migrate_phase2.py --verify
+    restart: "no"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  app:
+    image: omnicart-ai:latest
+    build: *app-build
+    restart: unless-stopped
+    init: true
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      <<: *app-db-env
       PORT: "8000"
       HF_HOME: /app/cache/huggingface
       RAG_DENSE_ENABLED: ${DOCKER_INSTALL_DENSE:-false}
@@ -66,6 +106,39 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  # Optional self-hosted embedding service (bge-m3 + SigLIP, ~3 GB of models
+  # baked in at build time, ~3 GB RAM). Not started unless the profile is used.
+  embeddings:
+    profiles: ["embeddings"]
+    build:
+      context: .
+      dockerfile: embedding_service/Dockerfile
+      args:
+        EMBEDDING_TEXT_MODEL: ${EMBEDDING_TEXT_MODEL:-BAAI/bge-m3}
+        EMBEDDING_TEXT_DIM: ${EMBEDDING_TEXT_DIM:-1024}
+        EMBEDDING_IMAGE_MODEL: ${EMBEDDING_IMAGE_MODEL:-google/siglip-base-patch16-224}
+        EMBEDDING_IMAGE_DIM: ${EMBEDDING_IMAGE_DIM:-768}
+    restart: unless-stopped
+    environment:
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:?Set EMBEDDING_API_KEY in .env}
+      EMBEDDING_TORCH_THREADS: ${EMBEDDING_TORCH_THREADS:-2}
+    ports:
+      - "127.0.0.1:${EMBEDDING_PORT:-8080}:8080"
+    mem_limit: 4g
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  # Full backend test suite in a clean container (no .env, SQLite fixture).
+  tests:
+    profiles: ["test"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: test
+    network_mode: none
 
 volumes:
   postgres-data:

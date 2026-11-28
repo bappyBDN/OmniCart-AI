@@ -39,7 +39,8 @@ class EmbeddingClient:
     def __init__(self, base_url: str = "", api_key: str = "", *, enabled: bool = True,
                  timeout: float = 3.0, max_retries: int = 2, failure_threshold: int = 3,
                  cooldown: float = 30.0, max_batch: int = 64,
-                 max_image_bytes: int = 8_000_000, transport: httpx.BaseTransport | None = None):
+                 max_image_bytes: int = 8_000_000, transport: httpx.BaseTransport | None = None,
+                 bearer_token: str = ""):
         self.base_url = (base_url or "").rstrip("/")
         self.api_key = api_key or ""
         self.enabled = enabled
@@ -53,11 +54,17 @@ class EmbeddingClient:
         self._failures = 0
         self._open_until = 0.0
         self._last_error = ""
+        headers = {"X-API-Key": self.api_key} if self.api_key else {}
+        # A private Hugging Face Space sits behind HF's proxy, which needs the
+        # account token as a Bearer header. X-API-Key is still checked by the
+        # service itself, so a leaked Space URL alone is not enough.
+        if bearer_token:
+            headers["Authorization"] = f"Bearer {bearer_token}"
         self._client = httpx.Client(
             base_url=self.base_url or "http://127.0.0.1:1",
             timeout=self.timeout,
             transport=transport,
-            headers={"X-API-Key": self.api_key} if self.api_key else {},
+            headers=headers,
         )
 
     @property
@@ -98,7 +105,8 @@ class EmbeddingClient:
             self._open_until = 0.0
             self._last_error = ""
 
-    def _request(self, path: str, *, json_body=None, content=None, content_type=None):
+    def _request(self, path: str, *, json_body=None, content=None, content_type=None,
+                 method: str = "POST"):
         if not self.enabled:
             return self._fallback("disabled")
         if not self.base_url or not self.api_key:
@@ -115,10 +123,13 @@ class EmbeddingClient:
             if remaining <= 0:
                 break
             try:
-                response = self._client.post(
-                    path, json=json_body, content=content, headers=headers,
-                    timeout=max(0.05, remaining),
-                )
+                if method == "GET":
+                    response = self._client.get(path, timeout=max(0.05, remaining))
+                else:
+                    response = self._client.post(
+                        path, json=json_body, content=content, headers=headers,
+                        timeout=max(0.05, remaining),
+                    )
             except httpx.TimeoutException:
                 last = "timeout"
             except httpx.HTTPError:
@@ -145,7 +156,7 @@ class EmbeddingClient:
         return self._fallback(last)
 
     def health(self):
-        payload = self._request("/health")
+        payload = self._request("/health", method="GET")
         if isinstance(payload, EmbeddingFallback):
             return payload
         if payload.get("status") != "ready":
@@ -211,6 +222,17 @@ class EmbeddingClient:
                               dimension=dimension)
 
 
+def service_bearer_token(url: str, explicit: str = "", hf_token: str = "") -> str:
+    """Bearer token for the service proxy: explicit value, else the HF token
+    only when the service is a Hugging Face Space (never sent elsewhere)."""
+    if explicit:
+        return explicit
+    host = httpx.URL(url).host if url else ""
+    if host.endswith(".hf.space"):
+        return hf_token
+    return ""
+
+
 @lru_cache(maxsize=1)
 def get_embedding_client() -> EmbeddingClient:
     return EmbeddingClient(
@@ -218,4 +240,9 @@ def get_embedding_client() -> EmbeddingClient:
         settings.embedding_service_api_key,
         enabled=settings.embedding_service_enabled,
         timeout=settings.embedding_service_timeout,
+        bearer_token=service_bearer_token(
+            settings.embedding_service_url,
+            settings.embedding_service_bearer_token,
+            settings.huggingface_token,
+        ),
     )

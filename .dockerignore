@@ -6,6 +6,15 @@
 !backend/
 !backend/**
 !models.py
+!alembic.ini
+!pytest.ini
+!migrations/
+!migrations/**
+!embedding_service/
+!embedding_service/**
+!tests/
+!tests/**
+!Data/edgecase.json
 !Data/
 !Data/products.json
 !Data/policies.json

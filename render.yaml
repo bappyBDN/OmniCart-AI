@@ -39,6 +39,18 @@ services:
         sync: false
       - key: FACEBOOK_PAGE_ID
         sync: false
+      # Free embedding service on a private Hugging Face Space (see
+      # scripts/deploy_hf_space.py). Keyword search is used while disabled.
+      - key: EMBEDDING_SERVICE_ENABLED
+        value: "false"
+      - key: EMBEDDING_SERVICE_URL
+        sync: false
+      - key: EMBEDDING_SERVICE_API_KEY
+        sync: false
+      - key: EMBEDDING_SERVICE_TIMEOUT
+        value: "5"
+      - key: HUGGINGFACEHUB_API_TOKEN
+        sync: false
 
 databases:
   - name: omnicart-postgres

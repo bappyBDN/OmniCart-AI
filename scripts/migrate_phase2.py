@@ -120,7 +120,8 @@ def apply():
 
 def downgrade():
     require_postgres(settings.database_url)
-    command.downgrade(alembic_config(), f"{REVISION}:base")
+    # "rev:base" ranges are only valid with --sql; an online downgrade takes a target.
+    command.downgrade(alembic_config(), "base")
     print("Downgraded Phase 2. New-only tables/columns were removed; check application version.")
 
 

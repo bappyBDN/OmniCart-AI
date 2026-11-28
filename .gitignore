@@ -35,3 +35,8 @@ frontend/test-results/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Mis-named secrets files
+env
+*.env.bak
+embedding_service/deploy/vm.env

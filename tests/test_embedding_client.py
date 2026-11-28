@@ -116,3 +116,42 @@ def test_disabled_or_unconfigured_client_returns_a_fallback():
     assert unconfigured.embed_text(["x"]).reason == "not_configured"
     disabled.close()
     unconfigured.close()
+
+
+def test_health_uses_get_and_reports_ready():
+    seen = {}
+
+    def handler(request):
+        seen["method"] = request.method
+        return httpx.Response(200, json={"status": "ready", "ready": True})
+
+    client = EmbeddingClient("http://embed", "secret", transport=transport(handler))
+    assert client.health()["status"] == "ready"
+    assert seen["method"] == "GET"
+    client.close()
+
+
+def test_private_hf_space_gets_bearer_and_api_key_headers():
+    seen = {}
+
+    def handler(request):
+        seen["auth"] = request.headers.get("authorization")
+        seen["key"] = request.headers.get("x-api-key")
+        return httpx.Response(200, json={"vectors": [[1.0]], "dimension": 1,
+                                         "model_name": "m", "model_version": "v"})
+
+    client = EmbeddingClient("https://u-omnicart-embeddings.hf.space", "secret",
+                             bearer_token="hf_test", transport=transport(handler))
+    assert isinstance(client.embed_text(["x"]), EmbeddingBatch)
+    assert seen == {"auth": "Bearer hf_test", "key": "secret"}
+    client.close()
+
+
+def test_hf_token_is_only_sent_to_hf_space_hosts():
+    from backend.embedding_client import service_bearer_token
+
+    assert service_bearer_token("https://u-x.hf.space", "", "hf_tok") == "hf_tok"
+    assert service_bearer_token("https://embed.example.com", "", "hf_tok") == ""
+    assert service_bearer_token("https://evil.com/?h=.hf.space", "", "hf_tok") == ""
+    assert service_bearer_token("", "", "hf_tok") == ""
+    assert service_bearer_token("https://embed.example.com", "explicit", "hf_tok") == "explicit"

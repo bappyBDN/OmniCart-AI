@@ -41,8 +41,11 @@ ENV EMBEDDING_ALLOW_DOWNLOAD=false \
     TRANSFORMERS_OFFLINE=1 \
     HF_DATASETS_OFFLINE=1
 
-RUN groupadd --gid 10001 app && useradd --uid 10001 --gid app --create-home app \
-    && chown -R app:app /app /models
+# Hugging Face Spaces run containers as uid 1000; scripts/deploy_hf_space.py
+# rewrites this default when uploading.
+ARG APP_UID=10001
+RUN groupadd --gid $APP_UID app && useradd --uid $APP_UID --gid app --create-home app \
+    && chown -R app:app /app /models && chmod -R a+rX /models
 USER app
 
 EXPOSE 8080

@@ -148,6 +148,17 @@ def upgrade() -> None:
     op.execute("ALTER TABLE api_order_drafts DROP CONSTRAINT IF EXISTS api_order_drafts_product_id_fkey")
     op.execute("ALTER TABLE api_product_images DROP CONSTRAINT IF EXISTS api_product_images_product_id_fkey")
     op.execute("ALTER TABLE product_aliases DROP CONSTRAINT IF EXISTS product_aliases_product_id_fkey")
+    # Composite FKs depend on the primary-key index. They exist already when the
+    # schema was created by the Phase 2 models (create_all) or on a re-run, so
+    # drop them BEFORE the key rewrite; they are recreated right after it.
+    for table, constraint in (
+        ("orders", "fk_orders_shop_product"),
+        ("catalog_entries", "fk_catalog_entries_shop_product"),
+        ("api_order_drafts", "fk_api_order_drafts_shop_product"),
+        ("api_product_images", "fk_api_product_images_shop_product"),
+        ("product_aliases", "fk_product_aliases_shop_product"),
+    ):
+        op.execute(f"ALTER TABLE {table} DROP CONSTRAINT IF EXISTS {constraint}")
 
     op.execute("ALTER TABLE catalog_entries DROP CONSTRAINT IF EXISTS catalog_entries_pkey")
     op.execute("ALTER TABLE catalog_entries ADD CONSTRAINT catalog_entries_pkey PRIMARY KEY (shop_id, product_id)")
@@ -157,14 +168,6 @@ def upgrade() -> None:
     op.execute("ALTER TABLE products DROP CONSTRAINT IF EXISTS products_pkey")
     op.execute("ALTER TABLE products ADD CONSTRAINT products_pkey PRIMARY KEY (shop_id, product_id)")
 
-    for table, constraint in (
-        ("orders", "fk_orders_shop_product"),
-        ("catalog_entries", "fk_catalog_entries_shop_product"),
-        ("api_order_drafts", "fk_api_order_drafts_shop_product"),
-        ("api_product_images", "fk_api_product_images_shop_product"),
-        ("product_aliases", "fk_product_aliases_shop_product"),
-    ):
-        op.execute(f"ALTER TABLE {table} DROP CONSTRAINT IF EXISTS {constraint}")
     op.execute("""
         ALTER TABLE orders ADD CONSTRAINT fk_orders_shop_product
         FOREIGN KEY (shop_id, product_id) REFERENCES products(shop_id, product_id)
@@ -191,6 +194,7 @@ def upgrade() -> None:
 
     # knowledge_versions must gain shop_id before the parent key can change.
     op.execute("ALTER TABLE knowledge_versions DROP CONSTRAINT IF EXISTS knowledge_versions_document_id_fkey")
+    op.execute("ALTER TABLE knowledge_versions DROP CONSTRAINT IF EXISTS fk_knowledge_versions_shop_document")
     op.execute("ALTER TABLE knowledge_versions ADD COLUMN IF NOT EXISTS shop_id VARCHAR")
     op.execute("""
         UPDATE knowledge_versions v

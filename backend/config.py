@@ -74,6 +74,10 @@ class Settings:
     embedding_service_url: str = os.getenv("EMBEDDING_SERVICE_URL", "")
     embedding_service_api_key: str = os.getenv("EMBEDDING_SERVICE_API_KEY", "")
     embedding_service_timeout: float = float(os.getenv("EMBEDDING_SERVICE_TIMEOUT", "3"))
+    # Proxy auth for a private Hugging Face Space. Empty = reuse the HF token,
+    # and only for *.hf.space URLs (see embedding_client.service_bearer_token).
+    embedding_service_bearer_token: str = os.getenv("EMBEDDING_SERVICE_BEARER_TOKEN", "")
+    huggingface_token: str = os.getenv("HUGGINGFACEHUB_API_TOKEN", "")
     embedding_text_dim: int = int(os.getenv("EMBEDDING_TEXT_DIM", "1024"))
     embedding_image_dim: int = int(os.getenv("EMBEDDING_IMAGE_DIM", "768"))
     email_enabled: bool = os.getenv("EMAIL_ENABLED", "false").lower() == "true"

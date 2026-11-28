@@ -1,0 +1,17 @@
+# EMBED_DOMAIN comes from vm.env, e.g. 34-93-10-20.sslip.io (free DNS that
+# resolves to the VM's IP), so Let's Encrypt can issue a real certificate.
+{$EMBED_DOMAIN} {
+	encode gzip
+	request_body {
+		max_size 10MB
+	}
+	reverse_proxy embeddings:8080 {
+		transport http {
+			read_timeout 60s
+		}
+	}
+	log {
+		output stdout
+		format json
+	}
+}

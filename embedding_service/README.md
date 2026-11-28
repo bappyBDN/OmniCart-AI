@@ -49,8 +49,16 @@ with each vector.
 
 ## Build and run (4 GB Google Compute Engine VM)
 
+One command from your PC (gcloud logged in; HTTPS via Caddy + sslip.io):
+
 ```bash
-docker build -t omnicart-embeddings ./embedding_service
+bash scripts/deploy_gce_embeddings.sh INSTANCE ZONE [PROJECT]
+```
+
+Manual equivalent (run from the repo root; the Dockerfile copies `embedding_service/`):
+
+```bash
+docker build -f embedding_service/Dockerfile -t omnicart-embeddings .
 docker run --rm -p 8080:8080 \
   -e EMBEDDING_API_KEY='replace-with-a-long-random-key' \
   omnicart-embeddings

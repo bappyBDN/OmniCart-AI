@@ -1,0 +1,52 @@
+# Embedding service for a Google Compute Engine VM (4 GB RAM), behind Caddy
+# with automatic HTTPS. Deployed by scripts/deploy_gce_embeddings.sh, which
+# writes ./vm.env (EMBEDDING_API_KEY, EMBED_DOMAIN; chmod 600) next to this file.
+#
+# Only Caddy is reachable from the internet (80 for the certificate challenge,
+# 443 for traffic). The model container listens on the private network only.
+services:
+  embeddings:
+    build:
+      context: ../..
+      dockerfile: embedding_service/Dockerfile
+      args:
+        EMBEDDING_TEXT_MODEL: ${EMBEDDING_TEXT_MODEL:-BAAI/bge-m3}
+        EMBEDDING_TEXT_DIM: ${EMBEDDING_TEXT_DIM:-1024}
+        EMBEDDING_IMAGE_MODEL: ${EMBEDDING_IMAGE_MODEL:-google/siglip-base-patch16-224}
+        EMBEDDING_IMAGE_DIM: ${EMBEDDING_IMAGE_DIM:-768}
+    image: omnicart-embeddings:latest
+    restart: unless-stopped
+    env_file:
+      - vm.env
+    environment:
+      EMBEDDING_TORCH_THREADS: ${EMBEDDING_TORCH_THREADS:-2}
+    expose:
+      - "8080"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    env_file:
+      - vm.env
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - embeddings
+
+volumes:
+  caddy-data:
+  caddy-config:
